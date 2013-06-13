@@ -21,7 +21,17 @@ Please note that this repository uses submodules to include the main w3af
 repository, so the ``--recursive`` flag in the ``git clone`` command is required.
 
 After some seconds you should be able to move to any directory and from a
-python interpreter run `import w3af`.
+python interpreter run ``import w3af``.
+
+::
+
+    andres@box:~$ python
+    Python 2.7.3 (default, Aug  1 2012, 05:14:39) 
+    [GCC 4.6.3] on linux2
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import w3af
+	>>>
+
 
 Dependencies
 ============
