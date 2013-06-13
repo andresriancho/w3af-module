@@ -4,11 +4,15 @@ from setuptools import setup, find_packages
 from os.path import join
 
 
+W3AF_REPO_PATH = 'w3af-repo/'
+
+
 def get_version():
     '''
     :return: A string with the version, for example, '1.5'.
     '''
-    version_file = join('w3af', 'core', 'data', 'constants', 'version.txt')
+    version_file = join(W3AF_REPO_PATH, 'w3af', 'core', 'data', 'constants',
+                        'version.txt')
     version = file(version_file).read().strip()
     return version
 
@@ -27,8 +31,11 @@ setup(
       author_email='andres.riancho@gmail.com',
       url='https://github.com/andresriancho/w3af/',
       
-      packages=find_packages(),
+      package_dir = {'': W3AF_REPO_PATH},
+      packages=find_packages(where=W3AF_REPO_PATH, exclude=['tests', 'test_']),
+      
       include_package_data=True,
+      package_data = {'': ['*.xml']},
       
       # https://pypi.python.org/pypi?%3Aaction=list_classifiers
       classifiers = [
