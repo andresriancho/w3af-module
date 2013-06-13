@@ -1,21 +1,26 @@
 #!/usr/bin/env python
 
+import os
 from setuptools import setup, find_packages
-from os.path import join
-
-
-W3AF_REPO_PATH = 'w3af-repo/'
 
 
 def get_version():
     '''
     :return: A string with the version, for example, '1.5'.
     '''
-    version_file = join(W3AF_REPO_PATH, 'w3af', 'core', 'data', 'constants',
-                        'version.txt')
+    version_file = os.path.join('w3af', 'core', 'data',
+                                'constants', 'version.txt')
     version = file(version_file).read().strip()
     return version
 
+def gen_data_files(*dirs):
+    results = []
+
+    for src_dir in dirs:
+        for root, dirs, files in os.walk(src_dir):
+            results.append((root, map(lambda f:root + "/" + f, files)))
+            
+    return results
 
 setup(
       name='w3af',
@@ -31,11 +36,15 @@ setup(
       author_email='andres.riancho@gmail.com',
       url='https://github.com/andresriancho/w3af/',
       
-      package_dir = {'': W3AF_REPO_PATH},
-      packages=find_packages(where=W3AF_REPO_PATH, exclude=['tests', 'test_']),
+      packages=find_packages(where='.', exclude=['tests', 'test_']),
+
+      # This will install all the files which live in the w3af directory inside
+      # site-packages. It's not pretty, but it works.       
+      data_files = gen_data_files('w3af'),
       
-      include_package_data=True,
-      package_data = {'': ['*.xml']},
+      # This allows w3af plugins to read the data_files which we deploy with
+      # data_files.
+      zip_safe=False,
       
       # https://pypi.python.org/pypi?%3Aaction=list_classifiers
       classifiers = [
