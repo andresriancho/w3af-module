@@ -10,9 +10,18 @@ main w3af distribution because regular users don't need it.
 Usage
 =====
 
-To use this file just download it, copy to the w3af root directory and run
-`python setup.py install` , after some seconds you should be able to move
-to any directory and from a python interpreter run `import w3af`.
+To install w3af as a module you'll have to follow these steps:
+
+::
+
+    git clone --recursive git@github.com:andresriancho/w3af-module.git
+    python setup.py install
+
+Please note that this repository uses submodules to include the main w3af
+repository, so the ``--recursive`` flag in the ``git clone`` command is required.
+
+After some seconds you should be able to move to any directory and from a
+python interpreter run `import w3af`.
 
 Dependencies
 ============
