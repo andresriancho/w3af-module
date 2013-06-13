@@ -30,7 +30,7 @@ python interpreter run ``import w3af``.
     [GCC 4.6.3] on linux2
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import w3af
-	>>>
+    >>>
 
 
 Dependencies
