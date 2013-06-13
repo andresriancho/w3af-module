@@ -15,7 +15,7 @@ To install w3af as a module you'll have to follow these steps:
 ::
 
     git clone --recursive git@github.com:andresriancho/w3af-module.git
-    python setup.py install
+    sudo python setup.py install
 
 Please note that this repository uses submodules to include the main w3af
 repository, so the ``--recursive`` flag in the ``git clone`` command is required.
