@@ -41,3 +41,21 @@ system packages required by w3af. You still need to go through the regular
 installation process to get a working w3af install.
 
 
+The w3af-repo submodule
+=======================
+
+Advanced users will notice that the ``w3af-repo`` directory is a `submodule 
+<http://git-scm.com/book/en/Git-Tools-Submodules>`_ which points to a specific
+w3af branch/commit. If you want to install a w3af for a module different than
+the current you'll have to:
+
+::
+
+    $ cd w3af-repo/
+    $ git pull origin/master   # or fetch then merge
+    $ cd ..
+    $ git commit w3af-repo/ -m "Updated submodule reference"
+
+A very nice submodule cheat-sheet can be found `here 
+<http://blog.jacius.info/git-submodule-cheat-sheet/>`_ and will help you manage
+the submodule complexities.
