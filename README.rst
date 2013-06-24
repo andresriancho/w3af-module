@@ -52,9 +52,9 @@ the current you'll have to:
 ::
 
     cd w3af-repo/
-    git pull origin/master   # or fetch then merge
+    git pull
     cd ..
-    git commit w3af-repo/ -m "Updated submodule reference"
+    git commit w3af-repo -m "Updated submodule reference"
 
 A very nice submodule cheat-sheet can be found `here 
 <http://blog.jacius.info/git-submodule-cheat-sheet/>`_ and will help you manage
