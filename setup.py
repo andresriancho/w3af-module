@@ -3,6 +3,8 @@
 import os
 from setuptools import setup, find_packages
 
+from w3af.core.controllers.dependency_check.platforms.current_platform import PIP_PACKAGES
+
 
 def get_version():
     '''
@@ -21,6 +23,22 @@ def gen_data_files(*dirs):
             results.append((root, map(lambda f:root + "/" + f, files)))
             
     return results
+
+def get_pip_requirements():
+    '''
+    :return: A list with the names of the pip packages used in w3af (both
+             the console and GUI versions).
+    '''
+    return [p.package_name for p in PIP_PACKAGES if 'git://' not in p.package_name]
+
+def get_pip_git_requirements():
+    '''
+    :return: The requirements that should be installed from git
+    '''
+    git_packages =  [p.package_name for p in PIP_PACKAGES \
+                     if 'git://' not in p.package_name]
+
+    return [pkg_url.replace('git+git://', 'http://') for pkg_url in git_packages]
 
 setup(
       name='w3af',
@@ -45,6 +63,10 @@ setup(
       # This allows w3af plugins to read the data_files which we deploy with
       # data_files.
       zip_safe=False,
+      
+      # Require at least the easiest PIP requirements from w3af
+      install_requires = get_pip_requirements(),
+      dependency_links = get_pip_git_requirements(),
       
       # https://pypi.python.org/pypi?%3Aaction=list_classifiers
       classifiers = [
