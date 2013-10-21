@@ -29,7 +29,10 @@ setup(
       
       # This allows w3af plugins to read the data_files which we deploy with
       # data_files.
-      zip_safe=False,
+      zip_safe = False,
+      
+      # Run the module tests using nose
+      test_suite = 'nose.collector',
       
       # Require at least the easiest PIP requirements from w3af
       install_requires = get_pip_requirements(),
