@@ -1,6 +1,7 @@
 # circleci finds setup.py and thinks I want to run it. I actually want, but not at this
 # stage, so I override dependencies and just install the requirements.
 dependencies:
+  pre:
     - pip install -r requirements.txt
 
 checkout:
