@@ -2,9 +2,9 @@
 
 from setuptools import setup, find_packages
 
-from utils.get_version import get_version
-from utils.gen_data_files import gen_data_files
-from utils.pip import get_pip_git_requirements, get_pip_requirements
+from mod_utils.get_version import get_version
+from mod_utils.gen_data_files import gen_data_files
+from mod_utils.pip import get_pip_git_requirements, get_pip_requirements
 
 
 setup(
