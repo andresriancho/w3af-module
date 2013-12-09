@@ -1,6 +1,6 @@
 import unittest
 
-from utils.gen_data_files import gen_data_files
+from mod_utils.gen_data_files import gen_data_files
 
 
 class TestGenDataFiles(unittest.TestCase):

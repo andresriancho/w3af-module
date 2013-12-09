@@ -1,6 +1,6 @@
 import unittest
 
-from utils.pip import get_pip_git_requirements, get_pip_requirements
+from mod_utils.pip import get_pip_git_requirements, get_pip_requirements
 
 
 class TestPip(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from utils.get_version import get_version
+from mod_utils.get_version import get_version
 
 
 class TestGetVersion(unittest.TestCase):
