@@ -16,4 +16,4 @@ def get_pip_git_requirements():
     git_packages =  [p.package_name for p in PIP_PACKAGES \
                      if 'git://' in p.package_name]
 
-    return [pkg_url.replace('git+git://', 'http://') for pkg_url in git_packages]
+    return [pkg_url.replace('git+git://', 'https://') for pkg_url in git_packages]
