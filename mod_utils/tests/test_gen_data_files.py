@@ -5,12 +5,12 @@ from mod_utils.gen_data_files import gen_data_files
 
 class TestGenDataFiles(unittest.TestCase):
     def test_gen_data_files_with_utils(self):
-        result = gen_data_files('utils')
+        result = gen_data_files('mod_utils')
         
         directories = [d for (d, _) in result]
         
-        self.assertIn('utils', directories)
-        self.assertIn('utils/tests', directories)
+        self.assertIn('mod_utils', directories)
+        self.assertIn('mod_utils/tests', directories)
         
         for directory, file_list in result:
             if directory == 'utils/tests':
