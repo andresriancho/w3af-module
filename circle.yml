@@ -1,9 +1,3 @@
-# circleci finds setup.py and thinks I want to run it. I actually want, but not at this
-# stage, so I override dependencies and just install the requirements.
-dependencies:
-  post:
-    - pip install -r requirements.txt
-
 checkout:
   post:
     - git submodule init
@@ -16,6 +10,8 @@ test:
     # Uninstall from the current virtualenv if it exists, then install again
     - pip uninstall -y w3af; true
     - python setup.py install
-    
+
+    - python -c 'import w3af'
+
 
 
