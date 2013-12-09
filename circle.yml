@@ -6,5 +6,7 @@ checkout:
 test:
   override:
     - nosetests --exclude-dir=w3af
+    - python setup.py install
+    
 
 
