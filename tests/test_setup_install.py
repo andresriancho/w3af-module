@@ -10,9 +10,11 @@ class TestInstall(unittest.TestCase):
     UNINSTALL_CMD = 'pip uninstall -y w3af'
     INSTALL_CMD = '%s setup.py install' % sys.executable
 
+    @classmethod
     def setUpClass(cls):
         subprocess.check_call(shlex.split(cls.INSTALL_CMD))
 
+    @classmethod
     def tearDownClass(cls):
         subprocess.check_call(shlex.split(cls.UNINSTALL_CMD))
 
