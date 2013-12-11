@@ -9,14 +9,17 @@ class TestInstall(unittest.TestCase):
 
     UNINSTALL_CMD = 'pip uninstall -y w3af'
     INSTALL_CMD = '%s setup.py install' % sys.executable
+    NULL = open(os.devnull, 'w')
 
     @classmethod
     def setUpClass(cls):
-        subprocess.check_call(shlex.split(cls.INSTALL_CMD))
+        subprocess.check_call(shlex.split(cls.INSTALL_CMD),
+                              stdout=cls.NULL, stderr=subprocess.STDOUT)
 
     @classmethod
     def tearDownClass(cls):
-        subprocess.check_call(shlex.split(cls.UNINSTALL_CMD))
+        subprocess.check_call(shlex.split(cls.UNINSTALL_CMD),
+                              stdout=cls.NULL, stderr=subprocess.STDOUT)
 
     def test_version_txt(self):
         # Get the location for the w3af module
@@ -28,13 +31,16 @@ class TestInstall(unittest.TestCase):
         version_txt = os.path.join(module_dir, 'core/data/constants/version.txt')
 
         # Check that the file was installed
-        self.assertTrue(os.path.exists(version_txt))
+        msg = '"%s" does NOT exist' % version_txt
+        self.assertTrue(os.path.exists(version_txt), msg)
 
     def test_get_version_call(self):
         VERSION_CMD = "%s -c 'from w3af.core.controllers.misc.get_w3af_version"\
                       " import get_w3af_version; print get_w3af_version()'"
-        subprocess.check_call(shlex.split(VERSION_CMD % sys.executable))
+        subprocess.check_call(shlex.split(VERSION_CMD % sys.executable),
+                              stdout=self.NULL, stderr=subprocess.STDOUT)
 
     def test_import(self):
         IMPORT_CMD = "%s -c 'import w3af'" % sys.executable
-        subprocess.check_call(shlex.split(IMPORT_CMD))
+        subprocess.check_call(shlex.split(IMPORT_CMD),
+                              stdout=self.NULL, stderr=subprocess.STDOUT)
