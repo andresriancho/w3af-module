@@ -25,7 +25,8 @@ class TestInstall(unittest.TestCase):
         # Get the location for the w3af module
         FILE_CMD = "%s -c 'import w3af; print w3af.__file__'" % sys.executable
         module_file = subprocess.check_output(shlex.split(FILE_CMD), cwd='tests')
-
+        module_file = module_file.strip()
+        
         # Append it with the location for the version.txt file
         module_dir = module_file.replace('__init__.pyc', '')
         version_txt = os.path.join(module_dir, 'core/data/constants/version.txt')
