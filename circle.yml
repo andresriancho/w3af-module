@@ -13,11 +13,3 @@ test:
   override:
     - nosetests --exclude-dir=w3af
 
-    # Uninstall from the current virtualenv if it exists, then install again
-    - pip uninstall -y w3af; true
-    - python setup.py install
-
-    - python -c 'import w3af'
-
-
-
