@@ -9,5 +9,4 @@ class TestGetVersion(unittest.TestCase):
         
         version = float(version)
         self.assertGreater(version, 1.4)
-        
-        
+
