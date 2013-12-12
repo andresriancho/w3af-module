@@ -1,3 +1,0 @@
-[submodule "w3af-repo"]
-	path = w3af-repo
-	url = git@github.com:andresriancho/w3af.git

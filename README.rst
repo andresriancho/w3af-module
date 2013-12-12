@@ -14,11 +14,8 @@ To install w3af as a module you'll have to follow these steps:
 
 ::
 
-    git clone --recursive git@github.com:andresriancho/w3af-module.git
+    git clone git@github.com:andresriancho/w3af-module.git
     sudo python setup.py install
-
-Please note that this repository uses submodules to include the main w3af
-repository, so the ``--recursive`` flag in the ``git clone`` command is required.
 
 After some seconds you should be able to move to any directory and from a
 python interpreter run ``import w3af``.
@@ -41,21 +38,19 @@ system packages required by w3af. You still need to go through the regular
 installation process to get a working w3af install.
 
 
-The w3af-repo submodule
-=======================
+The w3af directory
+==================
 
-Advanced users will notice that the ``w3af-repo`` directory is a `submodule 
-<http://git-scm.com/book/en/Git-Tools-Submodules>`_ which points to a specific
-w3af branch/commit. If you want to install a w3af for a module different than
-the current you'll have to:
+Advanced users will notice that the ``w3af`` directory is a copy of the `w3af`
+directory that lives in `git@github.com:andresriancho/w3af.git`. This is the
+source which will be used to build the module and was merged into this repository
+using [git subtree](https://help.github.com/articles/working-with-subtree-merge).
+
+To update the code that lives in this directory you'll have to run:
 
 ::
 
-    cd w3af-repo/
-    git pull
-    cd ..
-    git commit w3af-repo -m "Updated submodule reference"
+    git pull -s subtree panda master
+    git commit w3af -m "Updated w3af subtree"
 
-A very nice submodule cheat-sheet can be found `here 
-<http://blog.jacius.info/git-submodule-cheat-sheet/>`_ and will help you manage
-the submodule complexities.
+
