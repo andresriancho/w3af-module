@@ -6,7 +6,8 @@ def get_pip_requirements():
     :return: A list with the names of the pip packages used in w3af (both
              the console and GUI versions).
     '''
-    return [p.package_name for p in PIP_PACKAGES if not p.is_git]
+    return ['%s==%s' % (p.package_name, p.package_version) for p in PIP_PACKAGES
+            if not p.is_git]
 
 def get_pip_git_requirements():
     '''
