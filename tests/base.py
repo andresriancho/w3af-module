@@ -63,7 +63,7 @@ class BaseInstallMixin(object):
                                   stdout=self.NULL, stderr=subprocess.STDOUT,
                                   cwd='tests')
         except subprocess.CalledProcessError, cpe:
-            self.assertTrue(False, cpe.output)
+            self.assertEqual(False, True, cpe.output)
 
     def test_import(self):
         IMPORT_CMD = "%s -c 'import w3af'" % sys.executable
