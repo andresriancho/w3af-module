@@ -52,15 +52,18 @@ class BaseInstallMixin(object):
         version_txt = os.path.join(module_dir, 'core/data/constants/version.txt')
 
         # Check that the file was installed
-        msg = '"%s" does NOT exist' % version_txt
+        msg = 'File "%s" does NOT exist' % version_txt
         self.assertTrue(os.path.exists(version_txt), msg)
 
     def test_get_version_call(self):
         VERSION_CMD = "%s -c 'from w3af.core.controllers.misc.get_w3af_version"\
                       " import get_w3af_version; print get_w3af_version()'"
-        subprocess.check_call(shlex.split(VERSION_CMD % sys.executable),
-                              stdout=self.NULL, stderr=subprocess.STDOUT,
-                              cwd='tests')
+        try:
+            subprocess.check_call(shlex.split(VERSION_CMD % sys.executable),
+                                  stdout=self.NULL, stderr=subprocess.STDOUT,
+                                  cwd='tests')
+        except subprocess.CalledProcessError, cpe:
+            self.assertTrue(False, cpe.output)
 
     def test_import(self):
         IMPORT_CMD = "%s -c 'import w3af'" % sys.executable
