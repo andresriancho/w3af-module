@@ -4,11 +4,6 @@ dependencies:
   override:
     - pip install -r requirements.txt
 
-checkout:
-  post:
-    - git submodule init
-    - git submodule update
-
 test:
   override:
     - nosetests --exclude-dir=w3af -v
