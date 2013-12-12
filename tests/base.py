@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 
-def get_module_dir(self):
+def get_module_dir():
     # Get the location for the w3af module
     FILE_CMD = "%s -c 'import w3af; print w3af.__file__'" % sys.executable
     module_file = subprocess.check_output(shlex.split(FILE_CMD), cwd='tests')
