@@ -11,5 +11,5 @@ checkout:
 
 test:
   override:
-    - nosetests --exclude-dir=w3af
+    - nosetests --exclude-dir=w3af -v
 
