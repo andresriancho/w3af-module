@@ -52,5 +52,6 @@ To update the code that lives in this directory you'll have to run:
 
     git read-tree --prefix=w3af-repo/ -u w3af/feature/module
     git commit w3af -m "Updated w3af subtree"
+    git push
 
 
