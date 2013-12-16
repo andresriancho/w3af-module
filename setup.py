@@ -21,7 +21,7 @@ setup(
       author_email='andres.riancho@gmail.com',
       url='https://github.com/andresriancho/w3af/',
       
-      packages=find_packages(where='.', exclude=['tests', 'test_']),
+      packages=find_packages(where='.', exclude=['tests*', 'mod_utils*']),
 
       # This will install all the files which live in the w3af directory inside
       # site-packages. It's not pretty, but it works.       
@@ -30,12 +30,6 @@ setup(
       # This allows w3af plugins to read the data_files which we deploy with
       # data_files.
       zip_safe = False,
-
-      # Please link these scripts on install
-      entry_points = {
-                      "console_scripts":["w3af_console = w3af/w3af_console:_main"],
-                      "gui_scripts":["w3af_gui = w3af/w3af_gui:_main"]
-      },
 
       # Run the module tests using nose
       test_suite = 'nose.collector',
