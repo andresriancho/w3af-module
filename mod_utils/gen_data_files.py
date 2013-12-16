@@ -1,14 +1,18 @@
 import os
 
+from mod_utils.get_data_dst import get_data_dst
+
 EXCLUDE_EXTENSIONS = ('.py', '.pyc')
 PROFILE_ROOT_SRC = 'w3af-repo/profiles/'
-PROFILE_ROOT_DST = 'w3af/profiles/'
+DATA_ROOT_DST = get_data_dst()
+PROFILE_ROOT_DST = os.path.join(DATA_ROOT_DST, 'w3af/profiles/')
 
 
 def gen_data_files(_dir):
     result = []
     result.extend(gen_profile_files())
     result.extend(gen_generic_data_files(_dir))
+    print result
     return result
 
 
@@ -35,6 +39,7 @@ def gen_generic_data_files(_dir):
     for root, dirs, files in os.walk(_dir):
         filtered_files = filter(file_filter, files)
         if filtered_files:
-            results.append((root, map(path_join, filtered_files)))
+            results.append((DATA_ROOT_DST + '/' + root,
+                            map(path_join, filtered_files)))
 
     return results
