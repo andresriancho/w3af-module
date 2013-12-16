@@ -41,9 +41,9 @@ installation process to get a working w3af install.
 The w3af directory
 ==================
 
-Advanced users will notice that the ``w3af`` directory is a copy of the `w3af`
-directory that lives in `git@github.com:andresriancho/w3af.git`. This is the
-source which will be used to build the module and was merged into this repository
+Advanced users will notice that the ``w3af-repo`` directory is a copy of the
+`w3af` repository that lives in `git@github.com:andresriancho/w3af.git`. This is
+the source which will be used to build the module and was merged into this repository
 using [git subtree](https://help.github.com/articles/working-with-subtree-merge).
 
 To update the code that lives in this directory you'll have to run:
@@ -55,3 +55,17 @@ To update the code that lives in this directory you'll have to run:
     git push
 
 
+
+Testing the setup.py
+====================
+
+Testing the `setup.py` file is easy:
+
+::
+
+    virtualenv venv
+    . venv/bin/activate
+    rm -rf build/ dist/ w3af.egg-info/
+    python setup.py install --dry-run --record record.txt
+    # inspect the record.txt file
+    

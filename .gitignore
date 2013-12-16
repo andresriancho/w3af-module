@@ -38,3 +38,7 @@ nosetests.xml
 # No backups
 *~
 
+# Testing
+venv/
+record.txt
+
