@@ -50,10 +50,9 @@ To update the code that lives in this directory you'll have to run:
 
 ::
 
-    git read-tree --prefix=w3af-repo/ -u w3af/feature/module
-    git commit w3af -m "Updated w3af subtree"
+    cd w3af-repo/
+    git pull -s subtree w3af feature/module
     git push
-
 
 
 Testing the setup.py
