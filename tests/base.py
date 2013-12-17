@@ -72,7 +72,7 @@ class BaseInstallMixin(object):
 
     def test_dependencies_installed(self):
         DEPS_CMD = "%s -c 'from w3af.core.controllers.dependency_check."\
-                   "dependency_check import dependency_check; dependency_check()"
+                   "dependency_check import dependency_check; dependency_check()'"
         subprocess.check_call(shlex.split(DEPS_CMD % sys.executable),
                               stdout=self.NULL, stderr=subprocess.STDOUT,
                               cwd='tests')
