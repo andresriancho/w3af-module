@@ -13,10 +13,15 @@ def get_pip_git_requirements():
     '''
     :return: The requirements that should be installed from git
     '''
+    result = []
     git_packages = [p for p in PIP_PACKAGES if p.is_git]
 
-    for to_replace in ('git+git://', 'git+https://'):
-        for package in git_packages:
+    for package in git_packages:
+        for to_replace in ('git+git://', 'git+https://'):
             package.git_src = package.git_src.replace(to_replace, 'https://')
 
-    return [package.git_src for package in git_packages]
+    for package in git_packages:
+        egg_link = '%s-%s' % (package.tgz_src, package.package_version)
+        result.append(egg_link)
+
+    return result
