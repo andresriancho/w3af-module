@@ -54,8 +54,15 @@ class BaseInstallMixin(object):
         except subprocess.CalledProcessError, cpe:
             self.assertEqual(False, True, cpe.output)
 
-    def test_import(self):
+    def test_import_module(self):
         IMPORT_CMD = "%s -c 'import w3af'" % sys.executable
+        subprocess.check_call(shlex.split(IMPORT_CMD),
+                              stdout=self.NULL, stderr=subprocess.STDOUT,
+                              cwd='tests')
+
+    def test_import_core(self):
+        IMPORT_CMD = "%s -c 'from w3af.core.controllers.w3afCore import w3afCore;"\
+                     "c = w3afCore()'" % sys.executable
         subprocess.check_call(shlex.split(IMPORT_CMD),
                               stdout=self.NULL, stderr=subprocess.STDOUT,
                               cwd='tests')
