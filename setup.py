@@ -58,7 +58,10 @@ setup(
                         "setuptools_git==1.0"],
       install_requires = get_pip_requirements(),
       dependency_links = get_pip_git_requirements(),
-      
+
+      # Install these scripts
+      scripts=['w3af-repo/w3af_console', 'w3af-repo/w3af_gui'],
+
       # https://pypi.python.org/pypi?%3Aaction=list_classifiers
       classifiers = [
         'Development Status :: 5 - Production/Stable',
