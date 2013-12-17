@@ -5,7 +5,7 @@ from mod_utils.get_data_dst import get_data_dst
 EXCLUDE_EXTENSIONS = ('.py', '.pyc')
 PROFILE_ROOT_SRC = 'w3af-repo/profiles/'
 DATA_ROOT_DST = get_data_dst()
-PROFILE_ROOT_DST = os.path.join(DATA_ROOT_DST, 'w3af/profiles/')
+PROFILE_ROOT_DST = os.path.join(DATA_ROOT_DST, 'profiles/')
 
 
 def gen_data_files(_dir):
