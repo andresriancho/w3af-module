@@ -17,14 +17,6 @@ def get_data_dst():
     pip, I need to do this magic to always install the data files in the
     expected location.
     """
-    # Compute filename of the output egg
-    basename = PkgResDistribution(
-        None, None, 'w3af', get_version(),
-        get_python_version(),
-        False and get_build_platform()
-    ).egg_name()
-    egg_name = basename + '.egg'
-
     i = install(Distribution())
     i.initialize_options()
     i.finalize_options()
@@ -32,7 +24,18 @@ def get_data_dst():
     if called_from_pip():
         return i.install_purelib + os.path.sep
     else:
-        return i.install_purelib + os.path.sep #+ egg_name + os.path.sep
+        # Compute filename of the output egg
+        basename = PkgResDistribution(
+            None, None, 'w3af', get_version(),
+            get_python_version(),
+            False and get_build_platform()
+        ).egg_name()
+        egg_name = basename + '.egg'
+
+        # Note:
+        #   i.install_purelib: /tmp/test-profile/lib/python2.7/site-packages
+        #   egg_name: w3af-1.5-py2.7.egg
+        return i.install_purelib + os.path.sep + egg_name
 
 
 def called_from_pip():
