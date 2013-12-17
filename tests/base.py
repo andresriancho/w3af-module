@@ -20,7 +20,7 @@ class BaseInstallMixin(object):
 
     # To be defined in child classes
     INSTALL_CMD = None
-    UNINSTALL_CMD = 'pip uninstall -y w3af'
+    UNINSTALL_CMD = "find venv/ -name 'w3af*' | xargs rm -rf"
     NULL = open(os.devnull, 'w')
 
     @classmethod
@@ -33,18 +33,7 @@ class BaseInstallMixin(object):
         """
         A rather aggressive uninstall strategy
         """
-        try:
-            module_dir = get_module_dir()
-            shutil.rmtree(module_dir)
-        except:
-            pass
-
-        try:
-            subprocess.check_call(shlex.split(cls.UNINSTALL_CMD),
-                                  stdout=cls.NULL, stderr=subprocess.STDOUT)
-        except:
-            pass
-
+        subprocess.check_output(cls.UNINSTALL_CMD, shell=True)
 
     def test_version_txt(self):
         # Append it with the location for the version.txt file
