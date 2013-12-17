@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+import sys
+
+SETUPTOOLS_VERSION = '2.0.1'
+
+try:
+    from setuptools.version import __version__
+    assert __version__ == SETUPTOOLS_VERSION
+except (ImportError, AssertionError) as e:
+    print >> sys.stderr, (
+    "The required version of setuptools (==%s) is not available.\n"
+    "Please install a more recent version first, using 'pip install --upgrade"
+    " setuptools'.") % SETUPTOOLS_VERSION
+    sys.exit(2)
 
 from setuptools import setup, find_packages
 
@@ -24,9 +37,9 @@ setup(
       packages=find_packages(where='.', exclude=['tests*', 'mod_utils*']),
 
       # This will install all the files which live in the w3af directory inside
-      # site-packages. It's not pretty, but it works.       
+      # site-packages. It's not pretty, but it works.
       data_files = gen_data_files('w3af'),
-      
+
       # This allows w3af plugins to read the data_files which we deploy with
       # data_files.
       zip_safe = False,
@@ -35,6 +48,7 @@ setup(
       test_suite = 'nose.collector',
       
       # Require at least the easiest PIP requirements from w3af
+      setup_requires = ['setuptools==%s' % SETUPTOOLS_VERSION, ],
       install_requires = get_pip_requirements(),
       dependency_links = get_pip_git_requirements(),
       

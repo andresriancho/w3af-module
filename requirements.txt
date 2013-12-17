@@ -1,2 +1,4 @@
+setuptools==2.0.1
+
 nose-exclude==0.1.10
 nose==1.3.0
