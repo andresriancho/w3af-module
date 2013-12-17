@@ -16,7 +16,6 @@ except (ImportError, AssertionError) as e:
 from setuptools import setup, find_packages
 
 from mod_utils.get_version import get_version
-from mod_utils.gen_data_files import gen_data_files
 from mod_utils.pip import get_pip_git_requirements, get_pip_requirements
 
 
@@ -36,9 +35,8 @@ setup(
       
       packages=find_packages(where='.', exclude=['tests*', 'mod_utils*']),
 
-      # This will install all the files which live in the w3af directory inside
-      # site-packages. It's not pretty, but it works.
-      data_files = gen_data_files('w3af'),
+      # include everything in source control, depends on setuptools_git==1.0
+      include_package_data = True,
 
       # This allows w3af plugins to read the data_files which we deploy with
       # data_files.
@@ -48,7 +46,8 @@ setup(
       test_suite = 'nose.collector',
       
       # Require at least the easiest PIP requirements from w3af
-      setup_requires = ['setuptools==%s' % SETUPTOOLS_VERSION, ],
+      setup_requires = ['setuptools==%s' % SETUPTOOLS_VERSION,
+                        "setuptools_git==1.0"],
       install_requires = get_pip_requirements(),
       dependency_links = get_pip_git_requirements(),
       
