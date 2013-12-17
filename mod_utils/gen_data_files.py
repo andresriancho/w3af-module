@@ -12,7 +12,6 @@ def gen_data_files(_dir):
     result = []
     result.extend(gen_profile_files())
     result.extend(gen_generic_data_files(_dir))
-    print result
     return result
 
 
