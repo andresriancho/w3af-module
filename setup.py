@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import sys
+import os
 
 SETUPTOOLS_VERSION = '2.0.1'
+PROFILES_DIR = 'w3af-repo/profiles/'
 
 try:
     from setuptools.version import __version__
@@ -35,8 +37,14 @@ setup(
       
       packages=find_packages(where='.', exclude=['tests*', 'mod_utils*']),
 
-      # include everything in source control, depends on setuptools_git==1.0
+      # include everything in source control which lives inside one of the
+      # packages identified by find_packages, depends on setuptools_git==1.0
       include_package_data = True,
+
+      # include the data files, which don't live inside the directory
+
+      data_files=[('profiles',
+                   [PROFILES_DIR + '/' + f for f in os.listdir(PROFILES_DIR)]),],
 
       # This allows w3af plugins to read the data_files which we deploy with
       # data_files.
