@@ -20,7 +20,9 @@ class BaseInstallMixin(object):
 
     # To be defined in child classes
     INSTALL_CMD = None
-    UNINSTALL_CMD = "find venv/ -name 'w3af*' | xargs rm -rf"
+    UNINSTALL_CMDS = ["find venv/ -name 'w3af*' | xargs rm -rf",
+                      "rm -rf ~/.w3af/",
+                      "build/ dist/ w3af.egg-info/"]
     NULL = open(os.devnull, 'w')
 
     @classmethod
@@ -33,7 +35,8 @@ class BaseInstallMixin(object):
         """
         A rather aggressive uninstall strategy
         """
-        subprocess.check_output(cls.UNINSTALL_CMD, shell=True)
+        for uninstall_cmd in cls.UNINSTALL_CMDS:
+            subprocess.check_output(uninstall_cmd, shell=True)
 
     def test_version_txt(self):
         # Append it with the location for the version.txt file
