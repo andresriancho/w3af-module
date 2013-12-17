@@ -22,7 +22,7 @@ class BaseInstallMixin(object):
     INSTALL_CMD = None
     UNINSTALL_CMDS = ["find venv/ -name 'w3af*' | xargs rm -rf",
                       "rm -rf ~/.w3af/",
-                      "build/ dist/ w3af.egg-info/"]
+                      "rm -rf build/ dist/ w3af.egg-info/"]
     NULL = open(os.devnull, 'w')
 
     @classmethod
