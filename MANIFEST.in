@@ -1,0 +1,9 @@
+include *.*
+
+recursive-include w3af *.*
+recursive-include w3af-repo/profiles *.*
+
+prune mod_utils
+prune tests
+prune w3af-repo
+
