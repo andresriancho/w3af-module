@@ -44,7 +44,7 @@ The w3af directory
 Advanced users will notice that the ``w3af-repo`` directory is a copy of the
 ``w3af`` repository that lives in ``git@github.com:andresriancho/w3af.git``. This is
 the source which will be used to build the module and was merged into this repository
-using [git subtree](https://help.github.com/articles/working-with-subtree-merge).
+using `git subtree <https://help.github.com/articles/working-with-subtree-merge>`_.
 
 To update the code that lives in this directory you'll have to run:
 
