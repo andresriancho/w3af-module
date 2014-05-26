@@ -7,8 +7,7 @@ class TestPip(unittest.TestCase):
     def test_get_pip_git_requirements(self):
         pips = get_pip_git_requirements()
         
-        self.assertIn('https://github.com/andresriancho/phply/archive/0.9.1.tar.gz#egg=phply-dev',
-                      pips)
+        self.assertEqual([], pips)
     
     def test_get_pip_requirements(self):
         pips = get_pip_requirements()
@@ -18,7 +17,7 @@ class TestPip(unittest.TestCase):
             self.assertIn('==', pip_req)
 
         # And at least these are there
-        for expected in ('clamd', 'esmre', 'chardet', 'futures'):
+        for expected in ('clamd', 'esmre', 'chardet', 'futures', 'phply'):
             for pip_req in pips:
                 if pip_req.startswith(expected):
                     break
