@@ -51,7 +51,7 @@ To update the code that lives in this directory you'll have to run:
 ::
 
     cd w3af-repo/
-    git pull -s subtree w3af feature/module
+    git pull -s subtree w3af develop # or master if you want the stable release
     git push
 
 
