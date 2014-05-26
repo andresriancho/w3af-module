@@ -7,7 +7,7 @@ class TestPip(unittest.TestCase):
     def test_get_pip_git_requirements(self):
         pips = get_pip_git_requirements()
         
-        self.assertIn('https://github.com/andresriancho/phply/archive/0.9.tar.gz#egg=phply-dev',
+        self.assertIn('https://github.com/andresriancho/phply/archive/0.9.1.tar.gz#egg=phply-dev',
                       pips)
     
     def test_get_pip_requirements(self):
