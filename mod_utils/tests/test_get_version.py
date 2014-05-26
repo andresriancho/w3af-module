@@ -7,6 +7,7 @@ class TestGetVersion(unittest.TestCase):
     def test_get_version(self):
         version = get_version()
         
-        version = float(version)
-        self.assertGreater(version, 1.4)
+        self.assertTrue(version.startswith('1.6') or version.startswith('1.7')
+                        or version.startswith('1.8') or version.startswith('1.9'))
+
 
