@@ -1,4 +1,4 @@
-'''
+"""
 decorators.py
 
 Copyright 2011 Andres Riancho
@@ -17,20 +17,24 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import math
 import time
+import collections
+import functools
 
 from functools import wraps
 
+from w3af.core.controllers.misc.lru import LRU
+
 
 def runonce(exc_class=Exception):
-    '''
+    """
     Function to decorate methods that should be called only once.
 
     :param exc_class: The Exception class to be raised when the method has
         already been called.
-    '''
+    """
     def runonce_meth(meth):
         
         @wraps(meth)
@@ -45,7 +49,7 @@ def runonce(exc_class=Exception):
 
 
 def retry(tries, delay=1, backoff=2, exc_class=None, err_msg=''):
-    '''
+    """
     Retries a function or method if an exception was raised.
 
     :param tries: Number of attempts. Must be >= 1.
@@ -57,7 +61,7 @@ def retry(tries, delay=1, backoff=2, exc_class=None, err_msg=''):
     :param err_msg: Error message to use when an instance of `exc_class`
         is raised. If no value is passed the string representation of the
         current exception is used.
-    '''
+    """
 
     if backoff <= 1:
         raise ValueError("'backoff' must be greater than 1")
@@ -93,3 +97,57 @@ def retry(tries, delay=1, backoff=2, exc_class=None, err_msg=''):
         return f_retry
     
     return deco_retry
+
+
+def cached_property(fun):
+    """
+    A memoize decorator for class properties.
+    """
+    @wraps(fun)
+    def get(self):
+        try:
+            return self._cache[fun]
+        except AttributeError:
+            self._cache = {}
+        except KeyError:
+            pass
+        ret = self._cache[fun] = fun(self)
+        return ret
+
+    return property(get)
+
+
+class memoized(object):
+    """
+    Decorator. Caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned
+    (not reevaluated).
+    """
+    def __init__(self, func, lru_size=100):
+        self.func = func
+        self.cache = LRU(lru_size)
+
+    def __call__(self, *args):
+        if not isinstance(args, collections.Hashable):
+            # uncacheable. a list, for instance.
+            # better to not cache than blow up.
+            return self.func(*args)
+
+        if args in self.cache:
+            return self.cache[args]
+        else:
+            value = self.func(*args)
+            self.cache[args] = value
+            return value
+
+    def __repr__(self):
+        """
+        Return the function's docstring.
+        """
+        return self.func.__doc__
+
+    def __get__(self, obj, objtype):
+        """
+        Support instance methods.
+        """
+        return functools.partial(self.__call__, obj)

@@ -1,4 +1,4 @@
-'''
+"""
 extrusionScanner.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import hashlib
 import os
 import socket
@@ -31,7 +31,7 @@ import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.controllers.output_manager as om
 
 from w3af.core.controllers.extrusion_scanning.server.extrusionServer import extrusionServer
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.intrusion_tools.execMethodHelpers import (
     os_detection_exec,
     get_remote_temp_file)
@@ -40,24 +40,24 @@ from w3af.core.controllers.payload_transfer.echo_linux import EchoLinux
 
 
 class extrusionScanner(object):
-    '''
+    """
     This class is a wrapper that performs this process:
         - sends extrusion client to compromised machine
         - starts extrusion server
         - returns results from extrusion server to user
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self, exec_method, forceReRun=False,
                  tcpPortList=[25, 80, 53, 1433, 8080],
                  udpPortList=[53, 69, 139, 1025]):
-        '''
+        """
         :param exec_method: The exec_method used to execute commands on the
                                remote host
         :param forceReRun: If forceReRun is True, the extrusion scanner
                                won't fetch the results from the KB
-        '''
+        """
         self._exec_method = exec_method
         self._forceReRun = forceReRun
         self._tcp_port_list = tcpPortList
@@ -70,10 +70,10 @@ class extrusionScanner(object):
             self._transferHandler = EchoLinux(exec_method, os)
 
     def _getRemoteId(self):
-        '''
+        """
         Runs some commands on the remote host, concatenates outputs and creates a hash
         of the results. This will be an unique identifier for the host.
-        '''
+        """
         om.out.debug('Creating a remote server fingerprint.')
         r = self._exec('ipconfig /all')
         r += self._exec('ifconfig')
@@ -109,9 +109,9 @@ class extrusionScanner(object):
             return self._transferHandler.estimate_transfer_time(len(file_content)) + 8
 
     def get_inbound_port(self, desiredProtocol='TCP'):
-        '''
+        """
         Performs the process
-        '''
+        """
         if not self._forceReRun:
             # Try to return the data from the kb !
             remoteId = self._getRemoteId()
@@ -132,7 +132,7 @@ class extrusionScanner(object):
             msg = 'The user running w3af can\'t sniff on the specified'
             msg += ' interface. Hints: Are you root? Does this interface'
             msg += ' exist?'
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
         else:
             # I can sniff, it makes sense to send the extrusion client
             interpreter, remoteFilename = self._sendExtrusionClient()
@@ -150,7 +150,7 @@ class extrusionScanner(object):
             if not res:
                 msg = 'No inbound ports have been found. Maybe the extrusion'
                 msg += ' scan failed ?'
-                raise w3afException(msg)
+                raise BaseFrameworkException(msg)
             else:
                 host = res[0][0]
                 msg = 'The remote host: "%s" can connect to w3af with these ports:'
@@ -170,7 +170,7 @@ class extrusionScanner(object):
                         localPorts.append((port, protocol))
 
                 if not localPorts:
-                    raise w3afException('All the inbound ports are in use.')
+                    raise BaseFrameworkException('All the inbound ports are in use.')
                 else:
                     msg = 'The following ports are not bound to a local process'
                     msg += ' and can be used by w3af:'
@@ -212,9 +212,9 @@ class extrusionScanner(object):
         return interpreter, remoteFilename
 
     def _exec(self, command):
-        '''
+        """
         A wrapper for executing commands
-        '''
+        """
         om.out.debug('Executing: ' + command)
         response = apply(self._exec_method, (command,))
         om.out.debug('"' + command + '" returned: ' + response)
@@ -229,7 +229,7 @@ class extrusionScanner(object):
             return True
 
     def _selectExtrusionClient(self):
-        '''
+        """
         This method selects the extrusion client to use based on the remote OS
         and some other factors like:
             - is python installed ?
@@ -237,7 +237,7 @@ class extrusionScanner(object):
             - is phpcli installed ?
             - bash sockets ?
             - gcc compiler ?
-        '''
+        """
         ### TODO! Implement this!
         if '6' in self._exec('python -c print+3+3'):
             # "python -c 'print 3+3'" fails with magic quotes on... but
@@ -252,7 +252,7 @@ class extrusionScanner(object):
         else:
             msg = 'Failed to find a suitable extrusion scanner client for'
             msg += ' the remote system.'
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
 
         return interpreter, fileContent, extension
 
@@ -273,6 +273,6 @@ class extrusionScanner(object):
         res = self._exec(cmd)
 
         if 'OK.' not in res:
-            raise w3afException('The extrusion client failed to execute.')
+            raise BaseFrameworkException('The extrusion client failed to execute.')
         else:
             om.out.debug('The extrusion client run as expected.')

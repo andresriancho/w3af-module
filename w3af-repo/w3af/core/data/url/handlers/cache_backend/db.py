@@ -1,4 +1,4 @@
-'''
+"""
 db.py
 
 Copyright 2013 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import sqlite3
 
 import w3af.core.controllers.output_manager as om
@@ -29,7 +29,7 @@ from w3af.core.data.url.handlers.cache_backend.utils import gen_hash
 from w3af.core.data.url.HTTPResponse import HTTPResponse
 
 from w3af.core.controllers.misc.temp_dir import create_temp_dir
-from w3af.core.controllers.exceptions import w3afMustStopException
+from w3af.core.controllers.exceptions import ScanMustStopException
 
 
 class SQLCachedResponse(CachedResponse):
@@ -85,7 +85,7 @@ class SQLCachedResponse(CachedResponse):
             if 'disk' in str(e).lower():
                 msg += ' Please check if your disk is full.'
                 
-            raise w3afMustStopException(msg)
+            raise ScanMustStopException(msg)
 
         except Exception, ex:
             msg = ('Exception while inserting request/response to the'
@@ -97,11 +97,11 @@ class SQLCachedResponse(CachedResponse):
 
     @staticmethod
     def exists_in_cache(req):
-        '''
+        """
         alias = gen_hash(req)
         histitem = HistoryItem()
         return bool(histitem.find([('alias', alias, "=")]))
-        '''
+        """
         return True
 
     @staticmethod
@@ -111,7 +111,7 @@ class SQLCachedResponse(CachedResponse):
     
     @staticmethod
     def clear():
-        '''
+        """
         Clear the cache (remove all files and directories associated with it).
-        '''
+        """
         return HistoryItem().clear()

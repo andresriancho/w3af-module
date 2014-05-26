@@ -1,4 +1,4 @@
-'''
+"""
 test_os_commanding.py
 
 Copyright 2012 Andres Riancho
@@ -17,8 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
-from nose.plugins.attrib import attr
+"""
 from w3af.core.controllers.ci.moth import get_moth_http
 from w3af.plugins.tests.helper import PluginTest, PluginConfig
 
@@ -41,7 +40,6 @@ class TestOSCommanding(PluginTest):
         }
     }
 
-    @attr('ci_fails')
     def test_found_osc(self):
         # Run the scan
         cfg = self._run_configs['cfg']
@@ -50,8 +48,8 @@ class TestOSCommanding(PluginTest):
         # Assert the general results
         vulns = self.kb.get('os_commanding', 'os_commanding')
         self.assertEquals(3, len(vulns), vulns)
-        self.assertTrue(all(
-            ["OS commanding vulnerability" == v.get_name() for v in vulns]))
+        self.assertTrue(all(["OS commanding vulnerability" == v.get_name()
+                             for v in vulns]))
 
         # Verify the specifics about the vulnerabilities
         EXPECTED = [
@@ -60,9 +58,8 @@ class TestOSCommanding(PluginTest):
             ('blind_osc.py', 'cmd')
         ]
 
-        found_vulns = [(v.get_url(
-        ).get_file_name(), v.get_mutant().get_var()) for v in vulns]
+        found_vulns = [(v.get_url().get_file_name(), v.get_mutant().get_var())
+                       for v in vulns]
 
         self.assertEquals(set(EXPECTED),
-                          set(found_vulns)
-                          )
+                          set(found_vulns))

@@ -12,17 +12,18 @@ from w3af.core.controllers.ci.nosetests_wrapper.constants import (NOISE,
 
 
 def clean_noise(output_string):
-    '''
+    """
     Removes useless noise from the output
     
     :param output_string: The output string, stdout.
     :return: A sanitized output string
-    '''
+    """
     for noise in NOISE:
         output_string = output_string.replace(noise + '\n', '')
         output_string = output_string.replace(noise, '')
     
     return output_string
+
 
 def open_nosetests_output(suffix, first, last):
     name = '%s_%s-%s.%s' % (NOSE_OUTPUT_PREFIX, first, last, suffix)
@@ -33,15 +34,16 @@ def open_nosetests_output(suffix, first, last):
     
     return fhandler
 
+
 def run_nosetests(nose_cmd, first, last):
-    '''
+    """
     Run nosetests and return the output
     
     :param nose_cmd: The nosetests command, with all parameters.
     :return: (stdout, stderr, exit code) 
-    '''
+    """
     # Init the outputs
-    stdout = stderr = ''
+    console = stdout = stderr = ''
     output_file = open_nosetests_output('log', first, last)
     xunit_output = open_nosetests_output(NOSE_XUNIT_EXT, first, last)
     
@@ -73,6 +75,7 @@ def run_nosetests(nose_cmd, first, last):
             out = r.read(1)
             output_file.write(out)
             output_file.flush()
+            console += out
             
             # Write the output to the strings
             if r is p.stdout:
@@ -82,9 +85,22 @@ def run_nosetests(nose_cmd, first, last):
         else:
             idle_time += select_timeout
             if idle_time > NOSE_TIMEOUT:
+                # There is a special case which happens with the first call to
+                # nose where the tests finish successfully (OK shown) but the
+                # nosetests process doesn't end. Handle that case here:
+                if console.strip().endswith('OK') and 'Ran ' in console:
+                    p.kill()
+                    p.returncode = 0
+                    break
+
+                # Debugging my workaround
+                output_file.write("stdout.strip().endswith('OK') == %s\n" % console.strip().endswith('OK'))
+                output_file.write("'Ran ' in stdout == %s\n" % ('Ran ' in console))
+
+
                 # Log everywhere I can:
-                output_file.write('TIMEOUT\n')
-                stdout += 'TIMEOUT\n'
+                output_file.write('TIMEOUT @ nosetests wrapper\n')
+                stdout += 'TIMEOUT @ nosetests wrapper\n'
                 logging.warning('"%s" timeout waiting for output.' % nose_cmd)
                 
                 # Kill the nosetests command

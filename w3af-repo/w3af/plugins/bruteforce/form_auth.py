@@ -1,4 +1,4 @@
-'''
+"""
 form_auth.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 from __future__ import with_statement
 
 from itertools import izip, repeat
@@ -28,18 +28,18 @@ import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.data.constants.severity as severity
 
 from w3af.core.controllers.plugins.bruteforce_plugin import BruteforcePlugin
-from w3af.core.controllers.exceptions import w3afException, w3afMustStopOnUrlError
-from w3af.core.controllers.misc.levenshtein import relative_distance_ge
+from w3af.core.controllers.exceptions import BaseFrameworkException, ScanMustStopOnUrlError
+from w3af.core.controllers.misc.fuzzy_string_cmp import fuzzy_equal
 from w3af.core.data.dc import form
 from w3af.core.data.fuzzer.utils import rand_alnum
 from w3af.core.data.kb.vuln import Vuln
 
 
 class form_auth(BruteforcePlugin):
-    '''
+    """
     Bruteforce HTML form authentication.
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         BruteforcePlugin.__init__(self)
@@ -47,11 +47,11 @@ class form_auth(BruteforcePlugin):
         self._found = set()
 
     def audit(self, freq):
-        '''
+        """
         Tries to bruteforce a form auth. This aint fast!
 
         :param freq: A FuzzableRequest
-        '''
+        """
         freq_url = freq.get_url()
 
         if self._is_login_form(freq) and freq_url not in self._already_tested:
@@ -59,9 +59,15 @@ class form_auth(BruteforcePlugin):
             self._already_tested.append(freq_url)
 
             user_field, passwd_field = self._get_login_field_names(freq)
-            login_failed_result_list = self._id_failed_login_page(freq,
-                                                                  user_field,
-                                                                  passwd_field)
+
+            try:
+                login_failed_bodies = self._id_failed_login_page(freq,
+                                                                 user_field,
+                                                                 passwd_field)
+            except BaseFrameworkException, bfe:
+                msg = 'Unexpected response during form bruteforce setup: "%s"'
+                om.out.debug(msg % bfe)
+                return
 
             # Let the user know what we are doing
             om.out.information('Found a form login. The action of the '
@@ -80,7 +86,7 @@ class form_auth(BruteforcePlugin):
                 generator = self._create_pass_generator(freq_url)
 
             self._bruteforce_test(freq, user_field, passwd_field,
-                                  login_failed_result_list, generator)
+                                  login_failed_bodies, generator)
 
             # Report that we've finished.
             msg = 'Finished bruteforcing "%s".' % freq_url
@@ -100,19 +106,19 @@ class form_auth(BruteforcePlugin):
                                login_failed_result_list, combination)
 
     def _id_failed_login_page(self, freq, user_field, passwd_field):
-        '''
+        """
         Generate TWO different response bodies that are the result of failed
         logins.
 
         The first result is for logins with filled user and password fields;
         the second one is for a filled user and a blank passwd.
-        '''
+        """
         # The result is going to be stored here
         login_failed_result_list = []
 
         data_container = freq.get_dc()
-        data_container = self._true_extra_fields(
-            data_container, user_field, passwd_field)
+        data_container = self._true_extra_fields(data_container, user_field,
+                                                 passwd_field)
 
         # The first tuple is an invalid username and a password
         # The second tuple is an invalid username with a blank password
@@ -136,8 +142,8 @@ class form_auth(BruteforcePlugin):
             # Save it
             login_failed_result_list.append(body)
 
-        # Now I perform a self test, before starting with the actual bruteforcing
-        # The first tuple is an invalid username and a password
+        # Now I perform a self test, before starting with the actual
+        # bruteforcing. The first tuple is an invalid username and a password
         # The second tuple is an invalid username with a blank password
         tests = [(rand_alnum(8), rand_alnum(8)),
                  (rand_alnum(8), '')]
@@ -156,27 +162,28 @@ class form_auth(BruteforcePlugin):
             body = body.replace(passwd, '')
 
             if not self._matches_failed_login(body, login_failed_result_list):
-                raise w3afException('Failed to generate a response that '
-                                    'matches the failed login page.')
+                raise BaseFrameworkException('Failed to generate a response'
+                                             'that matches the failed login'
+                                             ' page.')
 
         return login_failed_result_list
 
     def _matches_failed_login(self, resp_body, login_failed_result_list):
-        '''
+        """
         :return: True if the resp_body matches the previously created
                  responses that are stored in login_failed_result_list.
-        '''
+        """
         for login_failed_result in login_failed_result_list:
-            if relative_distance_ge(resp_body, login_failed_result, 0.65):
+            if fuzzy_equal(resp_body, login_failed_result, 0.65):
                 return True
         else:
             # I'm happy! The response_body *IS NOT* a failed login page.
             return False
 
     def _is_login_form(self, freq):
-        '''
+        """
         :return: True if this FuzzableRequest is a loginForm.
-        '''
+        """
         passwd = text = other = 0
         data_container = freq.get_dc()
 
@@ -213,11 +220,11 @@ class form_auth(BruteforcePlugin):
             return False
 
     def _get_login_field_names(self, freq):
-        '''
+        """
         :return: The names of the form fields where to input the user and the
             password. Please remember that maybe user_parameter might be None,
             since we support password only login forms.
-        '''
+        """
         data_container = freq.get_dc()
         passwd_parameter = None
         user_parameter = None
@@ -233,7 +240,7 @@ class form_auth(BruteforcePlugin):
         return user_parameter, passwd_parameter
 
     def _true_extra_fields(self, data_container, user_field, passwd_field):
-        '''
+        """
         Some login forms have "extra" parameters. In some cases I've seen
         login forms that have an "I agree with the terms and conditions"
         checkbox. If w3af does not set that extra field to "true", even if
@@ -242,7 +249,7 @@ class form_auth(BruteforcePlugin):
 
         :return: A data_container that has all fields (other than the username
             and password) set to 1,
-        '''
+        """
         for parameter_name in data_container:
             if parameter_name not in (user_field, passwd_field):
                 for element_index, element_value in enumerate(data_container[parameter_name]):
@@ -252,11 +259,11 @@ class form_auth(BruteforcePlugin):
 
     def _brute_worker(self, freq, user_field, passwd_field,
                       login_failed_result_list, combination):
-        '''
+        """
         :param freq: A FuzzableRequest
         :param combination: A tuple with (user, pass) or a pass if this is a
                                 password only form.
-        '''
+        """
         if freq.get_url() not in self._found or not self._stop_on_first:
             freq = freq.copy()
             data_container = freq.get_dc()
@@ -278,7 +285,7 @@ class form_auth(BruteforcePlugin):
             try:
                 resp = self._uri_opener.send_mutant(freq, cookies=False,
                                                     grep=False)
-            except w3afMustStopOnUrlError:
+            except ScanMustStopOnUrlError:
                 return
             else:
                 body = resp.get_body()

@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-'''
+"""
 generic_filter_test.py
 
 Copyright 2012 Andres Riancho
@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
 import random
 import string
@@ -49,8 +49,8 @@ class GenericFilterTest(unittest.TestCase):
         # I decided to comment this line. Given the probabilistic nature of
         # these filters, it might be the case that the length of the filter is
         # CAPACITY-1 (in other words, one insert failed because all the bits
-        # were already set to 1) and that doesn't mean that the filter is useless
-        # it just means that it's false positive rate is going up.
+        # were already set to 1) and that doesn't mean that the filter is
+        # useless it just means that it's false positive rate is going up.
         #self.assertEqual( len(self.filter), self.CAPACITY)
 
         for i in xrange(0, self.CAPACITY):

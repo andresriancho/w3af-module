@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 test_HTTPResponse.py
 
 Copyright 2011 Andres Riancho
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 import cPickle
 import msgpack
@@ -51,17 +51,17 @@ class TestHTTPResponse(unittest.TestCase):
         return HTTPResponse(200, body, headers, url, url)
 
     def test_unicode_body_no_charset(self):
-        '''
+        """
         A charset *must* be passed as arg when creating a new
         HTTPResponse; otherwise expect an error.
-        '''
+        """
         self.assertRaises(AssertionError, self.resp.get_body)
 
     def test_rawread_is_none(self):
-        '''
+        """
         Guarantee that the '_raw_body' attr is set to None after
         used (Memory optimization)
-        '''
+        """
         resp = self.resp
         resp.set_charset('utf-8')
         # Use the 'raw body'
@@ -182,6 +182,18 @@ class TestHTTPResponse(unittest.TestCase):
         headers = Headers([('Content-Type', 'text/html')])
         resp = self.create_resp(headers, html)
         self.assertEquals(clear_text, resp.get_clear_text_body())
+
+    def test_get_clear_text_body_memoized(self):
+        html = 'header <b>ABC</b>-<b>DEF</b>-<b>XYZ</b> footer'
+        clear_text = 'header ABC-DEF-XYZ footer'
+        headers = Headers([('Content-Type', 'text/html')])
+        resp = self.create_resp(headers, html)
+
+        calculated_clear_text = resp.get_clear_text_body()
+        calculated_clear_text_2 = resp.get_clear_text_body()
+
+        self.assertEquals(clear_text, calculated_clear_text)
+        self.assertIs(calculated_clear_text_2, calculated_clear_text)
 
     def test_get_lower_case_headers(self):
         headers = Headers([('Content-Type', 'text/html')])

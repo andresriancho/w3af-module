@@ -1,4 +1,4 @@
-'''
+"""
 opener_settings.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import urllib2
 import socket
 import urlparse
@@ -28,7 +28,7 @@ import w3af.core.controllers.output_manager as om
 import w3af.core.data.url.handlers.ntlm_auth as HTTPNtlmAuthHandler
 
 from w3af.core.controllers.configurable import Configurable
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.kb.config import cf as cfg
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_list import OptionList
@@ -51,11 +51,11 @@ from w3af.core.data.url.handlers.errors import ErrorHandler
 
 
 class OpenerSettings(Configurable):
-    '''
+    """
     This is a urllib2 configuration manager.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     def __init__(self):
 
         # Set the openers to None
@@ -89,7 +89,7 @@ class OpenerSettings(Configurable):
         #   website :)
         self.header_list = [('User-Agent', user_agent)]
 
-        # By default, dont mangle any request/responses
+        # By default, don't mangle any request/responses
         self._mangle_plugins = []
 
         # User configured variables
@@ -128,20 +128,20 @@ class OpenerSettings(Configurable):
         cfg.save('string_match_404', '')
 
     def set_headers_file(self, headers_file):
-        '''
+        """
         Sets the special headers to use, this headers are specified in a file by the user.
         The file can have multiple lines, each line should have the following structure :
             - HEADER:VALUE_OF_HEADER
 
         :param headers_file: The filename where the special headers are specified.
         :return: No value is returned.
-        '''
+        """
         om.out.debug('Called SetHeaders()')
         if headers_file != '':
             try:
                 f = open(headers_file, 'r')
             except:
-                raise w3afException(
+                raise BaseFrameworkException(
                     'Unable to open headers file: ' + headers_file)
 
             header_list = []
@@ -155,11 +155,11 @@ class OpenerSettings(Configurable):
             cfg.save('headers_file', headers_file)
 
     def set_header_list(self, header_list):
-        '''
+        """
         :param header_list: A list of tuples with (header,value) to be added
                             to every request.
         :return: nothing
-        '''
+        """
         for h, v in header_list:
             self.header_list.append((h, v))
             om.out.debug('Added the following header: %s:%s' % (h,v))
@@ -184,7 +184,7 @@ class OpenerSettings(Configurable):
             cj.load(cookiejar_file)
         except Exception, e:
             msg = 'Error while loading cookiejar file. Description: "%s".'
-            raise w3afException(msg % e)
+            raise BaseFrameworkException(msg % e)
         else:
             self._cookie_handler = CookieHandler(cj)
             cfg.save('cookie_jar_file', cookiejar_file)
@@ -203,9 +203,9 @@ class OpenerSettings(Configurable):
         return cfg.get('cookie_jar_file')
 
     def get_cookies(self):
-        '''
+        """
         :return: The cookies that were collected during this scan.
-        '''
+        """
         return self._cookie_handler.cookiejar
     
     def clear_cookies(self):
@@ -216,7 +216,7 @@ class OpenerSettings(Configurable):
         om.out.debug('Called set_timeout(%s)' % timeout)
         if timeout > 60 or timeout < 1:
             err = 'The timeout parameter should be between 1 and 60 seconds.'
-            raise w3afException(err)
+            raise BaseFrameworkException(err)
         else:
             cfg.save('timeout', timeout)
 
@@ -241,14 +241,14 @@ class OpenerSettings(Configurable):
         return cfg.get('user_agent')
 
     def set_proxy(self, ip, port):
-        '''
+        """
         Saves the proxy information and creates the handler.
 
         If the information is invalid it will set self._proxy_handler to None,
         so no proxy is used.
 
         :return: None
-        '''
+        """
         om.out.debug('Called set_proxy(%s, %s)' % (ip, port))
 
         if not ip:
@@ -261,7 +261,7 @@ class OpenerSettings(Configurable):
         if port > 65535 or port < 1:
             #    The user entered something invalid
             self._proxy_handler = None
-            raise w3afException('Invalid port number: ' + str(port))
+            raise BaseFrameworkException('Invalid port number: ' + str(port))
 
         #
         #    Great, we have all valid information.
@@ -287,13 +287,13 @@ class OpenerSettings(Configurable):
 
         if not url:
             if url is None:
-                raise w3afException(
+                raise BaseFrameworkException(
                     'The entered basic_auth_domain URL is invalid!')
             elif username or password:
                 msg = ('To properly configure the basic authentication '
                        'settings, you should also set the auth domain. If you '
                        'are unsure, you can set it to the target domain name.')
-                raise w3afException(msg)
+                raise BaseFrameworkException(msg)
         else:
             if not hasattr(self, '_password_mgr'):
                 # Create a new password manager
@@ -380,24 +380,24 @@ class OpenerSettings(Configurable):
         return self._uri_opener
 
     def clear_cache(self):
-        '''
+        """
         Calls the cache handler and requires it to clear the cache, removing
         files and directories.
         
-        :return: True if the cache was sucessfully cleared.
-        '''
-        if self._cache_hdler is not None: 
+        :return: True if the cache was successfully cleared.
+        """
+        if self._cache_hdler is not None:
             return self._cache_hdler.clear()
         
         # The is no cache, clear always is successful in this case
         return True
 
     def set_mangle_plugins(self, mp):
-        '''
+        """
         Configure the mangle plugins to be used.
 
         :param mp: A list of mangle plugin instances.
-        '''
+        """
         self._mangle_plugins = mp
 
     def get_mangle_plugins(self):
@@ -415,22 +415,23 @@ class OpenerSettings(Configurable):
     def get_max_retrys(self):
         return cfg.get('max_http_retries')
 
-    def set_url_parameter(self, urlParam):
+    def set_url_parameter(self, url_param):
         # Do some input cleanup/validation
-        urlParam = urlParam.replace("'", "")
-        urlParam = urlParam.replace("\"", "")
-        urlParam = urlParam.lstrip().rstrip()
-        if urlParam != '':
-            cfg.save('url_parameter', urlParam)
-            self._url_parameterHandler = URLParameterHandler(urlParam)
+        url_param = url_param.replace("'", "")
+        url_param = url_param.replace("\"", "")
+        url_param = url_param.lstrip().rstrip()
+
+        if url_param != '':
+            cfg.save('url_parameter', url_param)
+            self._url_parameterHandler = URLParameterHandler(url_param)
 
     def get_url_parameter(self):
         return cfg.get('url_parameter')
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
         
         d = 'The timeout for connections to the HTTP server'
@@ -573,13 +574,13 @@ class OpenerSettings(Configurable):
         return ol
 
     def set_options(self, options_list):
-        '''
+        """
         This method sets all the options that are configured using the user interface
         generated by the framework using the result of get_options().
 
         :param options_list: An OptionList with the option objects for a plugin.
         :return: No value is returned.
-        '''
+        """
         getOptsMapValue = lambda n: options_list[n].get_value()
         self.set_timeout(getOptsMapValue('timeout'))
 

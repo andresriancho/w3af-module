@@ -1,4 +1,4 @@
-'''
+"""
 afd.py
 
 Copyright 2006 Andres Riancho
@@ -18,26 +18,26 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import urllib
 
 import w3af.core.controllers.output_manager as om
 import w3af.core.data.kb.knowledge_base as kb
 
 from w3af.core.controllers.plugins.infrastructure_plugin import InfrastructurePlugin
-from w3af.core.controllers.exceptions import w3afRunOnce, w3afException
+from w3af.core.controllers.exceptions import RunOnce, BaseFrameworkException
 from w3af.core.controllers.misc.decorators import runonce
-from w3af.core.controllers.misc.levenshtein import relative_distance_lt
+from w3af.core.controllers.misc.fuzzy_string_cmp import fuzzy_not_equal
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.fuzzer.utils import rand_alnum
 from w3af.core.data.kb.info import Info
 
 
 class afd(InfrastructurePlugin):
-    '''
+    """
     Find out if the remote web server has an active filter (IPS or WAF).
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         InfrastructurePlugin.__init__(self)
@@ -48,29 +48,29 @@ class afd(InfrastructurePlugin):
         self._not_filtered = []
         self._filtered = []
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def discover(self, fuzzable_request):
-        '''
+        """
         Nothing strange, just do some GET requests to the first URL with an
         invented parameter and the custom payloads that are supposed to be
         filtered, and analyze the response.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                     (among other things) the URL to test.
-        '''
+        """
         try:
             filtered, not_filtered = self._send_requests(fuzzable_request)
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             om.out.error(str(w3))
         else:
             self._analyze_results(filtered, not_filtered)
 
     def _send_requests(self, fuzzable_request):
-        '''
+        """
         Actually send the requests that might be blocked.
         :param fuzzable_request: The FuzzableRequest to modify in order to
                                      see if it's blocked
-        '''
+        """
         rnd_param = rand_alnum(7)
         rnd_value = rand_alnum(7)
         fmt = '%s?%s=%s'
@@ -80,7 +80,7 @@ class afd(InfrastructurePlugin):
 
         try:
             http_resp = self._uri_opener.GET(original_url, cache=True)
-        except w3afException:
+        except BaseFrameworkException:
             msg = 'Active filter detection plugin failed to receive a'\
                   ' response for the first request. Can not perform analysis.'
             om.out.error(msg)
@@ -106,32 +106,32 @@ class afd(InfrastructurePlugin):
 
     def _send_and_analyze(self, offending_string, offending_URL,
                           original_resp_body, rnd_param):
-        '''
+        """
         Actually send the HTTP request.
 
         :return: None, everything is saved to the self._filtered and
                  self._not_filtered lists.
-        '''
+        """
         try:
             resp_body = self._uri_opener.GET(offending_URL,
                                              cache=False).get_body()
-        except w3afException:
+        except BaseFrameworkException:
             # I get here when the remote end closes the connection
             self._filtered.append(offending_URL)
         else:
-            # I get here when the remote end returns a 403 or something like that...
-            # So I must analyze the response body
+            # I get here when the remote end returns a 403 or something like
+            # that... So I must analyze the response body
             resp_body = resp_body.replace(offending_string, '')
             resp_body = resp_body.replace(rnd_param, '')
-            if relative_distance_lt(resp_body, original_resp_body, 0.15):
+            if fuzzy_not_equal(resp_body, original_resp_body, 0.15):
                 self._filtered.append(offending_URL)
             else:
                 self._not_filtered.append(offending_URL)
 
     def _analyze_results(self, filtered, not_filtered):
-        '''
+        """
         Analyze the test results and save the conclusion to the kb.
-        '''
+        """
         if len(filtered) >= len(self._get_offending_strings()) / 5.0:
             desc = 'The remote network has an active filter. IMPORTANT: The'\
                    ' result of all the other plugins will be unaccurate, web'\
@@ -155,9 +155,9 @@ class afd(InfrastructurePlugin):
                     om.out.information('- ' + i)
 
     def _get_offending_strings(self):
-        '''
+        """
         :return: A list of strings that will be filtered by most IPS devices.
-        '''
+        """
         res = []
         res.append('../../../../etc/passwd')
         res.append('./../../../etc/motd\0html')
@@ -176,20 +176,20 @@ class afd(InfrastructurePlugin):
         return res
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin sends custom requests to the remote web server in order to
         verify if the remote network is protected by an IPS or WAF.
 
         afd plugin detects both TCP-Connection-reset and HTTP level filters, the
         first one (usually implemented by IPS devices) is easy to verify: if afd
-        requests the custom page and the GET method raises an exception, then its
-        being probably blocked by an active filter. The second one (usually
+        requests the custom page and the GET method raises an exception, then
+        its being probably blocked by an active filter. The second one (usually
         implemented by Web Application Firewalls like mod_security) is a little
         harder to verify: first afd requests a page without adding any offending
-        parameters, afterwards it requests the same URL but with a faked parameter
-        and customized values; if the response bodies differ, then its safe to
-        say that the remote end has an active filter.
-        '''
+        parameters, afterwards it requests the same URL but with a faked
+        parameter and customized values; if the response bodies differ, then its
+        safe to say that the remote end has an active filter.
+        """

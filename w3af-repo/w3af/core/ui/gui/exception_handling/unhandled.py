@@ -1,4 +1,4 @@
-'''
+"""
 unhandled.py
 
 Copyright 2009 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import sys
 import traceback
 
@@ -36,7 +36,7 @@ DEBUG_THREADS = False
 
 
 def handle_crash(w3af_core, _type, value, tb, plugins=''):
-    '''Function to handle any exception that is not addressed explicitly.'''
+    """Function to handle any exception that is not addressed explicitly."""
     if issubclass(_type, KeyboardInterrupt):
         handle_keyboardinterrupt(w3af_core)
 
@@ -66,7 +66,7 @@ def handle_keyboardinterrupt(w3af_core):
     helpers.end_threads()
         
     w3af_core.quit()
-    print 'a'
+
     if DEBUG_THREADS:
         import threading
         import pprint
@@ -85,6 +85,7 @@ def handle_keyboardinterrupt(w3af_core):
     # 130 seems to be the correct exit code for this case
     # http://tldp.org/LDP/abs/html/exitcodes.html
     sys.exit(130)
+
 
 def set_except_hook(w3af_core):
     sys.excepthook = partial(handle_crash, w3af_core)

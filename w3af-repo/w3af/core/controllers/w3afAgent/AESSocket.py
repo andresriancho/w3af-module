@@ -1,4 +1,4 @@
-'''
+"""
 AESSocket.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 
 """
 msg = "Nothing in this file is used in w3af. This was a test that was truncated by my personal\

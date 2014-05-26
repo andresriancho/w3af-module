@@ -1,4 +1,4 @@
-'''
+"""
 test_phishtank.py
 
 Copyright 2012 Andres Riancho
@@ -17,11 +17,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import datetime
 import re
 
-from nose.plugins.attrib import attr
 from w3af.core.controllers.ci.moth import get_moth_http
 from w3af.plugins.tests.helper import PluginTest
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
@@ -57,7 +56,6 @@ class TestPhishtank(PluginTest):
             if match and 'CDATA' not in line:
                 return match.group(1)
 
-    @attr('ci_fails')
     def test_phishtank_match(self):
         phishtank_inst = self.w3afcore.plugins.get_plugin_inst('crawl',
                                                                'phishtank')
@@ -74,7 +72,6 @@ class TestPhishtank(PluginTest):
         self.assertEqual(vuln.get_severity(), MEDIUM)
         self.assertEqual(vuln.get_url(), vuln_url)
 
-    @attr('ci_fails')
     def test_xml_parsing(self):
         phishtank_inst = self.w3afcore.plugins.get_plugin_inst('crawl',
                                                                'phishtank')

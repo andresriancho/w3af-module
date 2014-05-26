@@ -1,4 +1,4 @@
-'''
+"""
 redirect.py
 
 Copyright 2011 Andres Riancho
@@ -18,12 +18,19 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import urllib2
 
 
+GET_HEAD_CODES = {301, 302, 303, 307}
+GET_HEAD = {"GET", "HEAD"}
+
+POST_CODES = {301, 302, 303}
+POST = 'POST'
+
+
 class HTTP30XHandler(urllib2.HTTPRedirectHandler):
-    '''
+    """
     A simple handler that says: "30x responses are not errors".
     
     Please note that this is an HTTPRedirectHandler. We do NOT want to
@@ -45,15 +52,15 @@ class HTTP30XHandler(urllib2.HTTPRedirectHandler):
     If the "resp" object in that code is a 302, the _create_fuzzable_requests
     will take care of parsing the "Location" header and returning a fuzzable
     request (in fuzz_req_list) for it.
-    '''
+    """
     def http_error_default(self, req, resp, code, msg, hdrs):
         
         m = req.get_method()
 
         # The RFC defines only some cases in which the HTTP response can
         # return 30x codes, and which codes can be returned.        
-        if (code in (301, 302, 303, 307) and m in ("GET", "HEAD")
-        or code in (301, 302, 303) and m == "POST"):
+        if (code in GET_HEAD_CODES and m in GET_HEAD)\
+        or (code in POST_CODES and m == POST):
             return resp
 
         err = urllib2.HTTPError(req.get_full_url(), code, msg, hdrs, resp)

@@ -1,4 +1,4 @@
-'''
+"""
 test_proxy.py
 
 Copyright 2012 Andres Riancho
@@ -18,12 +18,13 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import urllib2
 import unittest
 
 from nose.plugins.attrib import attr
 
+from w3af.core.controllers.ci.moth import get_moth_http, get_moth_https
 from w3af.core.data.url.extended_urllib import ExtendedUrllib
 from w3af.core.controllers.misc.temp_dir import create_temp_dir
 from w3af.core.controllers.daemons.proxy import Proxy, w3afProxyHandler
@@ -50,17 +51,16 @@ class TestProxy(unittest.TestCase):
         self.proxy_opener = urllib2.build_opener(proxy_handler,
                                                  urllib2.HTTPHandler)
 
-    @attr('ci_fails')
     def test_do_req_through_proxy(self):
-        resp_body = self.proxy_opener.open('http://moth').read()
+        resp_body = self.proxy_opener.open(get_moth_http()).read()
 
         # Basic check
         self.assertTrue(len(resp_body) > 0)
 
         # Get response using the proxy
-        proxy_resp = self.proxy_opener.open('http://moth')
+        proxy_resp = self.proxy_opener.open(get_moth_http())
         # Get it without any proxy
-        direct_resp = urllib2.urlopen('http://moth')
+        direct_resp = urllib2.urlopen(get_moth_http())
 
         # Must be equal
         self.assertEqual(direct_resp.read(), proxy_resp.read())
@@ -70,21 +70,27 @@ class TestProxy(unittest.TestCase):
         # test fail
         direct_resp_headers = dict(direct_resp.info())
         proxy_resp_headers = dict(proxy_resp.info())
+
+        # Make sure that a change in the seconds returned in date doesn't break
+        # the test
         del direct_resp_headers['date']
         del proxy_resp_headers['date']
+
+        del direct_resp_headers['transfer-encoding']
+        del proxy_resp_headers['content-length']
+
         self.assertEqual(direct_resp_headers, proxy_resp_headers)
 
-    @attr('ci_fails')
     def test_do_SSL_req_through_proxy(self):
-        resp_body = self.proxy_opener.open('https://moth').read()
+        resp_body = self.proxy_opener.open(get_moth_https()).read()
 
         # Basic check
         self.assertTrue(len(resp_body) > 0)
 
         # Get response using the proxy
-        proxy_resp = self.proxy_opener.open('https://moth')
+        proxy_resp = self.proxy_opener.open(get_moth_https())
         # Get it without any proxy
-        direct_resp = urllib2.urlopen('https://moth')
+        direct_resp = urllib2.urlopen(get_moth_https())
 
         # Must be equal
         self.assertEqual(direct_resp.read(), proxy_resp.read())
@@ -98,27 +104,26 @@ class TestProxy(unittest.TestCase):
         del proxy_resp_headers['date']
         self.assertEqual(direct_resp_headers, proxy_resp_headers)
 
-    @attr('ci_fails')
     def test_proxy_req_ok(self):
-        '''Test if self._proxy.stop() works as expected. Note that the check
+        """Test if self._proxy.stop() works as expected. Note that the check
         content is the same as the previous check, but it might be that this
         check fails because of some error in start() or stop() which is run
-        during setUp and tearDown.'''
+        during setUp and tearDown."""
         # Get response using the proxy
-        proxy_resp = self.proxy_opener.open('http://moth').read()
+        proxy_resp = self.proxy_opener.open(get_moth_http()).read()
         # Get it the other way
-        resp = urllib2.urlopen('http://moth').read()
+        resp = urllib2.urlopen(get_moth_http()).read()
         # They must be very similar
         self.assertEqual(resp, proxy_resp)
     
     def test_stop_no_requests(self):
-        '''Test what happens if I stop the proxy without sending any requests
-        through it'''
+        """Test what happens if I stop the proxy without sending any requests
+        through it"""
         # Note that the test is completed by self._proxy.stop() in tearDown
         pass
 
     def test_stop_stop(self):
-        '''Test what happens if I stop the proxy twice.'''
+        """Test what happens if I stop the proxy twice."""
         # Note that the test is completed by self._proxy.stop() in tearDown
         self._proxy.stop()
     

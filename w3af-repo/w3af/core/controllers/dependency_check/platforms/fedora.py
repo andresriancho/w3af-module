@@ -1,4 +1,4 @@
-'''
+"""
 fedora.py
 
 Copyright 2013 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import subprocess
 
 SYSTEM_NAME = 'fedora'
@@ -46,7 +46,7 @@ def os_package_is_installed(package_name):
         # We're not on a debian based system
         return None
     else:
-        dpkg_output = p.stdout.read()
+        dpkg_output, _ = p.communicate()
 
         if not_installed in dpkg_output:
             return False

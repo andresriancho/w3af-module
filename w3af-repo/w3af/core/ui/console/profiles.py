@@ -1,4 +1,4 @@
-'''
+"""
 profiles.py
 
 Copyright 2008 Andres Riancho
@@ -18,21 +18,21 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import string
 import w3af.core.controllers.output_manager as om
 
 from w3af.core.ui.console.menu import menu
 from w3af.core.ui.console.util import suggest
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class profilesMenu(menu):
-    '''
+    """
     Menu to control the profiles.
     :author: Alexander Berezhnoy (alexander.berezhnoy |at| gmail.com)
 
-    '''
+    """
 
     def __init__(self, name, console, w3af, parent=None):
         menu.__init__(self, name, console, w3af, parent)
@@ -43,17 +43,15 @@ class profilesMenu(menu):
         self._load_help('profiles')
 
     def _cmd_use(self, params):
-        '''
+        """
         :param params: A two-elems list containing the name of the profile to
                        load and the original working directory.
-        '''
+        """
         if not params:
             om.out.console('Parameter missing, please see the help:')
             self._cmd_help(['use'])
         else:
             profile = params[0]
-            if profile not in self._profiles:
-                raise w3afException('Unknown profile name: "%s"' % profile)
 
             try:
                 workdir = params[1]
@@ -62,7 +60,7 @@ class profilesMenu(menu):
 
             try:
                 self._w3af.profiles.use_profile(profile, workdir=workdir)
-            except w3afException, w3:
+            except BaseFrameworkException, w3:
                 om.out.console(str(w3))
 
             om.out.console('The plugins configured by the scan profile have '
@@ -81,9 +79,9 @@ class profilesMenu(menu):
             self._console.draw_table(table)
 
     def _cmd_save_as(self, params):
-        '''
+        """
         Saves the current config to a new profile.
-        '''
+        """
         if not params:
             om.out.console('Parameter missing, please see the help:')
             self._cmd_help(['save_as'])

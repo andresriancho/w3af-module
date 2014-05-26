@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 test_xurllib.py
 
 Copyright 2011 Andres Riancho
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import os
 import time
 import unittest
@@ -28,6 +28,7 @@ import types
 
 from multiprocessing.dummy import Process
 from nose.plugins.attrib import attr
+from mock import Mock
 
 from w3af.core.data.url.extended_urllib import ExtendedUrllib, MAX_ERROR_COUNT
 from w3af.core.data.url.tests.helpers.upper_daemon import UpperDaemon
@@ -37,10 +38,10 @@ from w3af.core.data.dc.headers import Headers
 
 from w3af.core.controllers.ci.moth import get_moth_http
 from w3af.core.controllers.misc.temp_dir import get_temp_dir
-from w3af.core.controllers.exceptions import (w3afMustStopByUserRequest,
-                                         w3afMustStopOnUrlError,
-                                         w3afMustStopException,
-                                         w3afMustStopByUnknownReasonExc)
+from w3af.core.controllers.exceptions import (ScanMustStopByUserRequest,
+                                         ScanMustStopOnUrlError,
+                                         ScanMustStopException,
+                                         ScanMustStopByUnknownReasonExc)
 
 
 @attr('moth')
@@ -97,12 +98,12 @@ class TestXUrllib(unittest.TestCase):
 
     def test_unknown_url(self):
         url = URL('http://longsitethatdoesnotexistfoo.com/')
-        self.assertRaises(w3afMustStopOnUrlError, self.uri_opener.GET, url)
+        self.assertRaises(ScanMustStopOnUrlError, self.uri_opener.GET, url)
 
     def test_url_port_closed(self):
         # TODO: Change 2312 by an always closed/non-http port
         url = URL('http://127.0.0.1:2312/')
-        self.assertRaises(w3afMustStopOnUrlError, self.uri_opener.GET, url)
+        self.assertRaises(ScanMustStopOnUrlError, self.uri_opener.GET, url)
 
     def test_url_port_not_http(self):
         upper_daemon = UpperDaemon(EmptyTCPHandler)
@@ -112,7 +113,7 @@ class TestXUrllib(unittest.TestCase):
         port = upper_daemon.get_port()
 
         url = URL('http://127.0.0.1:%s/' % port)
-        self.assertRaises(w3afMustStopOnUrlError, self.uri_opener.GET, url)
+        self.assertRaises(ScanMustStopOnUrlError, self.uri_opener.GET, url)
 
     def test_url_port_not_http_many(self):
         upper_daemon = UpperDaemon(EmptyTCPHandler)
@@ -125,11 +126,11 @@ class TestXUrllib(unittest.TestCase):
         for _ in xrange(MAX_ERROR_COUNT):
             try:
                 self.uri_opener.GET(url)
-            except w3afMustStopByUnknownReasonExc:
+            except ScanMustStopByUnknownReasonExc:
                 self.assertTrue(False, 'Not expecting this exception type.')
-            except w3afMustStopOnUrlError:
+            except ScanMustStopOnUrlError:
                 self.assertTrue(True)
-            except w3afMustStopException:
+            except ScanMustStopException:
                 self.assertTrue(True)
                 break
         else:
@@ -146,7 +147,7 @@ class TestXUrllib(unittest.TestCase):
         
         self.uri_opener.settings.set_timeout(1)
         
-        self.assertRaises(w3afMustStopOnUrlError, self.uri_opener.GET, url)
+        self.assertRaises(ScanMustStopOnUrlError, self.uri_opener.GET, url)
         
         self.uri_opener.settings.set_default_values()
 
@@ -164,28 +165,49 @@ class TestXUrllib(unittest.TestCase):
         for _ in xrange(MAX_ERROR_COUNT):
             try:
                 self.uri_opener.GET(url)
-            except w3afMustStopByUnknownReasonExc:
+            except ScanMustStopByUnknownReasonExc:
                 self.assertTrue(False, 'Not expecting this exception type.')
-            except w3afMustStopOnUrlError:
+            except ScanMustStopOnUrlError:
                 self.assertTrue(True)
-            except w3afMustStopException:
+            except ScanMustStopException:
                 self.assertTrue(True)
                 break
         else:
             self.assertTrue(False)
         
         self.uri_opener.settings.set_default_values()
-        
+
+    def test_ignore_errors(self):
+        upper_daemon = UpperDaemon(TimeoutTCPHandler)
+        upper_daemon.start()
+        upper_daemon.wait_for_start()
+
+        port = upper_daemon.get_port()
+
+        self.uri_opener.settings.set_timeout(1)
+        self.uri_opener._retry = Mock()
+
+        url = URL('http://127.0.0.1:%s/' % port)
+
+        try:
+            self.uri_opener.GET(url, ignore_errors=True)
+        except ScanMustStopOnUrlError:
+            self.assertEqual(self.uri_opener._retry.call_count, 0)
+        else:
+            self.assertTrue(False, 'Exception not raised')
+
+        self.uri_opener.settings.set_default_values()
+
     def test_stop(self):
         self.uri_opener.stop()
         url = URL(get_moth_http())
-        self.assertRaises(w3afMustStopByUserRequest, self.uri_opener.GET, url)
+        self.assertRaises(ScanMustStopByUserRequest, self.uri_opener.GET, url)
 
     def test_pause_stop(self):
         self.uri_opener.pause(True)
         self.uri_opener.stop()
         url = URL(get_moth_http())
-        self.assertRaises(w3afMustStopByUserRequest, self.uri_opener.GET, url)
+        self.assertRaises(ScanMustStopByUserRequest, self.uri_opener.GET, url)
 
     def test_pause(self):
         output = Queue.Queue()
@@ -259,10 +281,12 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.GET(url, cache=False, headers=headers)
         self.assertIn(header_content, http_response.body)
 
+
 class EmptyTCPHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         self.data = self.request.recv(1024).strip()
         self.request.sendall('')
+
 
 class TimeoutTCPHandler(SocketServer.BaseRequestHandler):
     def handle(self):

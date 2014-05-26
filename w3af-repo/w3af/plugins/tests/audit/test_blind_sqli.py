@@ -1,4 +1,4 @@
-'''
+"""
 test_blind_sqli.py
 
 Copyright 2012 Andres Riancho
@@ -17,10 +17,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
-
+"""
 from nose.plugins.attrib import attr
+
 from w3af.plugins.tests.helper import PluginTest, PluginConfig
+from w3af.core.controllers.ci.moth import get_moth_http
 
 
 class TestBlindSQLI(PluginTest):
@@ -34,9 +35,8 @@ class TestBlindSQLI(PluginTest):
         }
     }
 
-    @attr('ci_fails')
     def test_integer(self):
-        target_url = 'http://moth/w3af/audit/blind_sql_injection/bsqli_integer.php'
+        target_url = get_moth_http('/audit/blind_sqli/where_integer_qs.py')
         qs = '?id=1'
         self._scan(target_url + qs, self._run_configs['cfg']['plugins'])
 
@@ -45,16 +45,22 @@ class TestBlindSQLI(PluginTest):
 
         # Now some tests around specific details of the found vuln
         vuln = vulns[0]
-        self.assertEquals(
-            "Blind SQL injection vulnerability", vuln.get_name())
+        self.assertEquals("Blind SQL injection vulnerability", vuln.get_name())
         self.assertFalse('time delays' in vuln.get_desc())
         self.assertEquals("numeric", vuln['type'])
         self.assertEquals(target_url, str(vuln.get_url()))
 
-    @attr('ci_fails')
     def test_single_quote(self):
-        target_url = 'http://moth/w3af/audit/blind_sql_injection/bsqli_string.php'
-        qs = '?email=andres@w3af.org'
+        target_url = get_moth_http('/audit/blind_sqli/where_string_single_qs.py')
+        qs = '?uname=pablo'
+        self._scan_single_quote(target_url, qs)
+
+    def test_single_quote_non_true_value_as_init(self):
+        target_url = get_moth_http('/audit/blind_sqli/where_string_single_qs.py')
+        qs = '?uname=foobar39'
+        self._scan_single_quote(target_url, qs)
+
+    def _scan_single_quote(self, target_url, qs):
         self._scan(target_url + qs, self._run_configs['cfg']['plugins'])
 
         vulns = self.kb.get('blind_sqli', 'blind_sqli')
@@ -67,6 +73,40 @@ class TestBlindSQLI(PluginTest):
         self.assertFalse('time delays' in vuln.get_desc())
         self.assertEquals("stringsingle", vuln['type'])
         self.assertEquals(target_url, str(vuln.get_url()))
+
+    def test_found_exploit_blind_sqli_form(self):
+        # Run the scan
+        target = get_moth_http('/audit/blind_sqli/blind_where_integer_form.py')
+        cfg = self._run_configs['cfg']
+        self._scan(target, cfg['plugins'])
+
+        # Assert the general results
+        vulns = self.kb.get('blind_sqli', 'blind_sqli')
+
+        self.assertEquals(1, len(vulns))
+        vuln = vulns[0]
+
+        self.assertEquals("Blind SQL injection vulnerability", vuln.get_name())
+        self.assertEquals('text', vuln.get_mutant().get_var())
+        self.assertEquals('blind_where_integer_form.py',
+                          vuln.get_url().get_file_name())
+
+    def test_found_exploit_blind_sqli_form_GET(self):
+        # Run the scan
+        target = get_moth_http('/audit/blind_sqli/blind_where_integer_form_get.py')
+        cfg = self._run_configs['cfg']
+        self._scan(target, cfg['plugins'])
+
+        # Assert the general results
+        vulns = self.kb.get('blind_sqli', 'blind_sqli')
+
+        self.assertEquals(1, len(vulns))
+        vuln = vulns[0]
+
+        self.assertEquals("Blind SQL injection vulnerability", vuln.get_name())
+        self.assertEquals('q', vuln.get_mutant().get_var())
+        self.assertEquals('blind_where_integer_form_get.py',
+                          vuln.get_url().get_file_name())
 
     @attr('ci_fails')
     def test_single_quote_random(self):

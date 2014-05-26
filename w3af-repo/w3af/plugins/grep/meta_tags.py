@@ -1,4 +1,4 @@
-'''
+"""
 meta_tags.py
 
 Copyright 2006 Andres Riancho
@@ -18,23 +18,23 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.data.parsers.parser_cache as parser_cache
 
 from w3af.core.controllers.plugins.grep_plugin import GrepPlugin
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.kb.info import Info
 
 
 class meta_tags(GrepPlugin):
-    '''
+    """
     Grep every page for interesting meta tags.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
-    '''
+    """
     Can someone explain what this meta tag does?
     <meta name="verify-v1" content="/JBoXnwT1d7TbbWCwL8tXe+Ts2I2LXYrdnnK50g7kdY=" />
 
@@ -43,7 +43,7 @@ class meta_tags(GrepPlugin):
     for Sitemaps you have to add that element to a root page to demonstrate to Google that
     you're the site owner. So there is probably a Sitemaps account for the site, if you
     haven't found it already.
-    '''
+    """
     INTERESTING_WORDS = {'user': None, 'pass': None, 'microsoft': None,
                          'visual': None, 'linux': None, 'source': None,
                          'author': None, 'release': None, 'version': None,
@@ -54,19 +54,19 @@ class meta_tags(GrepPlugin):
 
     
     def grep(self, request, response):
-        '''
+        """
         Plugin entry point, search for meta tags.
 
         :param request: The HTTP request object.
         :param response: The HTTP response object
         :return: None
-        '''
+        """
         if not response.is_text_or_html() or is_404(response):
             return
 
         try:
             dp = parser_cache.dpc.get_document_parser_for(response)
-        except w3afException:
+        except BaseFrameworkException:
             return
 
         meta_tag_list = dp.get_meta_tags()
@@ -106,19 +106,19 @@ class meta_tags(GrepPlugin):
                         self.kb_append_uniq(self, 'meta_tags', i, 'URL')
 
     def _find_name(self, tag):
-        '''
+        """
         :return: the tag name.
-        '''
+        """
         for key, value in tag.items():
             if key.lower() == 'name':
                 return value
         return ''
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin greps every page for interesting meta tags. Some interesting
         meta tags are the ones that contain : 'microsoft', 'visual', 'linux' .
-        '''
+        """

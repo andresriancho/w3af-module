@@ -1,4 +1,4 @@
-'''
+"""
 w3afAgentManager.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 import time
 import socket
@@ -28,7 +28,7 @@ from multiprocessing.dummy import Process
 import w3af.core.controllers.output_manager as om
 
 from w3af import ROOT_PATH
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.w3afAgent.server.w3afAgentServer import w3afAgentServer
 from w3af.core.controllers.payload_transfer.payload_transfer_factory import payload_transfer_factory
 from w3af.core.controllers.extrusion_scanning.extrusionScanner import extrusionScanner
@@ -37,13 +37,13 @@ from w3af.core.controllers.intrusion_tools.execMethodHelpers import get_remote_t
 
 
 class w3afAgentManager(Process):
-    '''
+    """
     Start a w3afAgent, to do this, I must transfer the agent client to the
     remote end and start the w3afServer in this local machine.
 
     This is a Process, so the entry point is start() , which will
     internally call the run() method.
-    '''
+    """
     def __init__(self, exec_method, ip_address, socks_port=1080):
         Process.__init__(self)
         self.daemon = True
@@ -57,24 +57,24 @@ class w3afAgentManager(Process):
         self._agent_server = None
 
     def _exec(self, command):
-        '''
+        """
         A wrapper for executing commands
-        '''
+        """
         om.out.debug('Executing: ' + command)
         response = apply(self._exec_method, (command,))
         om.out.debug('"' + command + '" returned: ' + response)
         return response
 
     def run(self):
-        '''
+        """
         Entry point for the whole process.
-        '''
+        """
 
         # First, I have to check if I have a good w3afAgentClient to send to the
         # other end...
         try:
             interpreter, client_code, extension = self._select_client()
-        except w3afException:
+        except BaseFrameworkException:
             om.out.error('Failed to find a suitable w3afAgentClient for the remote server.')
         else:
 
@@ -106,7 +106,7 @@ class w3afAgentManager(Process):
                 transferHandler = ptf.get_transfer_handler(inbound_port)
 
                 if not transferHandler.can_transfer():
-                    raise w3afException('Can\'t transfer w3afAgent client to remote host, can_transfer() returned False.')
+                    raise BaseFrameworkException('Can\'t transfer w3afAgent client to remote host, can_transfer() returned False.')
                 else:
                     #    Let the user know how much time it will take to transfer the file
                     estimatedTime = transferHandler.estimate_transfer_time(
@@ -123,7 +123,7 @@ class w3afAgentManager(Process):
                     upload_success = transferHandler.transfer(
                         client_code, filename)
                     if not upload_success:
-                        raise w3afException('The w3afAgent client failed to upload. Remote file hash does NOT match.')
+                        raise BaseFrameworkException('The w3afAgent client failed to upload. Remote file hash does NOT match.')
 
                     om.out.console('Finished w3afAgent client upload!')
 
@@ -157,7 +157,7 @@ class w3afAgentManager(Process):
         if not dH.can_delay():
             msg = '[w3afAgentManager] Failed to create cron entry.'
             om.out.debug(msg)
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
         else:
             wait_time = dH.add_to_schedule(command)
 
@@ -172,10 +172,10 @@ class w3afAgentManager(Process):
             dH.restore_old_schedule()
 
     def _select_client(self):
-        '''
+        """
         This method selects the w3afAgent client to use based on the remote OS and some other factors
         like having a working python installation.
-        '''
+        """
         python = self._exec('which python')
         python = python.strip()
 
@@ -194,9 +194,9 @@ class w3afAgentManager(Process):
         return interpreter, file_content, extension
 
     def _is_locally_available(self, port):
-        '''
+        """
         :return: True if the current user can bind to the specified port.
-        '''
+        """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:

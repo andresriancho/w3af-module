@@ -1,4 +1,4 @@
-'''
+"""
 server_status.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import re
 
 import w3af.core.controllers.output_manager as om
@@ -27,7 +27,7 @@ import w3af.core.data.constants.severity as severity
 
 from w3af.core.controllers.plugins.infrastructure_plugin import InfrastructurePlugin
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
-from w3af.core.controllers.exceptions import w3afRunOnce
+from w3af.core.controllers.exceptions import RunOnce
 from w3af.core.controllers.misc.decorators import runonce
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.kb.vuln import Vuln
@@ -35,11 +35,11 @@ from w3af.core.data.kb.info import Info
 
 
 class server_status(InfrastructurePlugin):
-    '''
+    """
     Find new URLs from the Apache server-status cgi.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         InfrastructurePlugin.__init__(self)
@@ -47,14 +47,14 @@ class server_status(InfrastructurePlugin):
         # Internal variables
         self._shared_hosting_hosts = []
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def discover(self, fuzzable_request):
-        '''
+        """
         Get the server-status and parse it.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                      (among other things) the URL to test.
-        '''
+        """
         base_url = fuzzable_request.get_url().base_url()
         server_status_url = base_url.url_join('server-status')
         response = self._uri_opener.GET(server_status_url, cache=True)
@@ -71,10 +71,10 @@ class server_status(InfrastructurePlugin):
                 return self._extract_urls(fuzzable_request, response)
 
     def _extract_server_version(self, fuzzable_request, response):
-        '''
+        """
         Get the server version from the HTML:
             <dl><dt>Server Version: Apache/2.2.9 (Unix)</dt>
-        '''
+        """
         for version in re.findall('<dl><dt>Server Version: (.*?)</dt>',
                                   response.get_body()):
             # Save the results in the KB so the user can look at it
@@ -90,10 +90,10 @@ class server_status(InfrastructurePlugin):
             kb.kb.append(self, 'server', i)
 
     def _extract_urls(self, fuzzable_request, response):
-        '''
+        """
         Extract information from the server-status page and return fuzzable
         requests to the caller.
-        '''
+        """
         res = self._create_fuzzable_requests(response)
 
         # Now really parse the file and create custom made fuzzable requests
@@ -105,8 +105,8 @@ class server_status(InfrastructurePlugin):
 
             # Check if the requested domain and the found one are equal.
             if domain == response.get_url().get_domain():
-                found_url = response.get_url(
-                ).get_protocol() + '://' + domain + path
+                proto = response.get_url().get_protocol()
+                found_url = proto + '://' + domain + path
                 found_url = URL(found_url)
 
                 # They are equal, request the URL and create the fuzzable
@@ -125,8 +125,7 @@ class server_status(InfrastructurePlugin):
             v = Vuln.from_fr('Shared hosting', desc, severity.MEDIUM,
                              response.id, self.get_name(), fuzzable_request)
 
-            self._shared_hosting_hosts = list(
-                set(self._shared_hosting_hosts))
+            self._shared_hosting_hosts = list(set(self._shared_hosting_hosts))
             v['also_in_hosting'] = self._shared_hosting_hosts
 
             kb.kb.append(self, 'shared_hosting', v)
@@ -141,11 +140,11 @@ class server_status(InfrastructurePlugin):
         return res
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin fetches the server-status file used by Apache, and parses it.
         After parsing, new URLs are found, and in some cases, the plugin can deduce
         the existance of other domains hosted on the same server.
-        '''
+        """

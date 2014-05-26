@@ -1,4 +1,4 @@
-'''
+"""
 import_results.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import csv
 import base64
 import os
@@ -28,7 +28,7 @@ from lxml import etree
 import w3af.core.controllers.output_manager as om
 
 from w3af.core.controllers.plugins.crawl_plugin import CrawlPlugin
-from w3af.core.controllers.exceptions import w3afRunOnce, w3afException
+from w3af.core.controllers.exceptions import RunOnce, BaseFrameworkException
 from w3af.core.controllers.misc.decorators import runonce
 
 from w3af.core.data.options.opt_factory import opt_factory
@@ -40,10 +40,10 @@ from w3af.core.data.parsers.HTTPRequestParser import HTTPRequestParser
 
 
 class import_results(CrawlPlugin):
-    '''
+    """
     Import URLs found by other tools.
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     def __init__(self):
         CrawlPlugin.__init__(self)
 
@@ -51,9 +51,9 @@ class import_results(CrawlPlugin):
         self._input_csv = ''
         self._input_burp = ''
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def crawl(self, fuzzable_request):
-        '''
+        """
         Read the input file, and create the fuzzable_request_list based on that
         information.
 
@@ -61,36 +61,51 @@ class import_results(CrawlPlugin):
                                     (among other things) the URL to test.
                                     In this case it is simply ignored and data
                                     is read from the input files.
-        '''
+        """
         self._load_data_from_csv()
         self._load_data_from_burp()
 
     def _load_data_from_csv(self):
-        '''
+        """
         Load data from the csv file
-        '''
+        """
         if self._input_csv != '':
             try:
-                file_handler = file(self._input_csv)
-            except w3afException, e:
+                file_handler = file(self._input_csv, 'rb')
+            except BaseFrameworkException, e:
                 msg = 'An error was found while trying to read "%s": "%s".'
                 om.out.error(msg % (self._input_csv, e))
             else:
-                for row in csv.reader(file_handler):
-                    obj = self._obj_from_csv(row)
-                    if obj:
-                        self.output_queue.put(obj)
+                reader = csv.reader(file_handler)
+
+                while True:
+                    try:
+                        csv_row = reader.next()
+                        obj = self._obj_from_csv(csv_row)
+                    except StopIteration:
+                        break
+                    except csv.Error:
+                        # line contains NULL byte, and other similar things.
+                        # https://github.com/andresriancho/w3af/issues/1490
+                        msg = 'import_results: Ignoring data with CSV error at'\
+                              ' line "%s"'
+                        om.out.debug(msg % reader.line_num)
+                    except ValueError:
+                        om.out.debug('Invalid import_results input: "%r"' % csv_row)
+                    else:
+                        if obj is not None:
+                            self.output_queue.put(obj)
 
     def _load_data_from_burp(self):
-        '''
+        """
         Load data from Burp's log
-        '''
+        """
         if self._input_burp != '':
             if os.path.isfile(self._input_burp):
                 try:
                     fuzzable_request_list = self._objs_from_burp_log(
                         self._input_burp)
-                except w3afException, e:
+                except BaseFrameworkException, e:
                     msg = 'An error was found while trying to read the Burp log' \
                           ' file (%s): "%s".'
                     om.out.error(msg % (self._input_burp, e))
@@ -99,23 +114,9 @@ class import_results(CrawlPlugin):
                         self.output_queue.put(fr)
 
     def _obj_from_csv(self, csv_row):
-        '''
-        :return: A FuzzableRequest based on the csv_line.
-
-        >>> i = import_results()
-
-        >>> i._obj_from_csv(('GET', 'http://www.w3af.com/', ''))
-        <QS fuzzable request | GET | http://www.w3af.com/>
-        >>> i._obj_from_csv(('GET', 'http://www.w3af.com/?id=1', ''))
-        <QS fuzzable request | GET | http://www.w3af.com/?id=1>
-        >>> pdr = i._obj_from_csv(('GET', 'http://www.w3af.com/', 'id=1'))
-        >>> pdr
-        <postdata fuzzable request | GET | http://www.w3af.com/>
-        >>> pdr._dc
-        QueryString({u'id': [u'1']})
-        >>> pdr.get_data()
-        'id=1'
-        '''
+        """
+        :return: A FuzzableRequest based on the csv_line read from the file.
+        """
         try:
             (method, uri, postdata) = csv_row
         except ValueError, value_error:
@@ -126,24 +127,23 @@ class import_results(CrawlPlugin):
             # Create the obj based on the information
             uri = URL(uri)
             if uri.is_valid_domain():
-                return create_fuzzable_request_from_parts(uri, method,
-                                                          postdata)
+                return create_fuzzable_request_from_parts(uri, method, postdata)
 
     def _objs_from_burp_log(self, burp_file):
-        '''
+        """
         Read a burp log (XML) and extract the information.
-        '''
+        """
         class XMLParser(object):
-            '''
+            """
             TODO: Support protocol (http|https) and port extraction. Now it only
             works with http and 80.
-            '''
+            """
             requests = []
             parsing_request = False
             current_is_base64 = False
 
             def start(self, tag, attrib):
-                '''
+                """
                 <request base64="true"><![CDATA[R0VUI...4zDQoNCg==]]></request>
 
                 or
@@ -152,7 +152,7 @@ class import_results(CrawlPlugin):
                 Host: moth
                 ...
                 ]]></request>
-                '''
+                """
                 if tag == 'request':
                     self.parsing_request = True
 
@@ -192,9 +192,9 @@ class import_results(CrawlPlugin):
         return requests
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
 
         d = 'Define the CSV input file from which to create the fuzzable requests'
@@ -211,21 +211,21 @@ class import_results(CrawlPlugin):
         return ol
 
     def set_options(self, options_list):
-        '''
+        """
         This method sets all the options that are configured using the user interface
         generated by the framework using the result of get_options().
 
         :param options_list: A dictionary with the options for the plugin.
         :return: No value is returned.
-        '''
+        """
         self._input_csv = options_list['input_csv'].get_value()
         self._input_burp = options_list['input_burp'].get_value()
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin serves as an entry point for the results of other tools that
         identify URLs. The plugin reads from different input files and directories
         and creates the fuzzable requests which are needed by the audit plugins.
@@ -236,4 +236,4 @@ class import_results(CrawlPlugin):
 
         One or more of these need to be configured in order for this plugin to
         yield any results.
-        '''
+        """

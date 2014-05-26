@@ -1,4 +1,4 @@
-'''
+"""
 test_http_auth_detect.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
 
 import w3af.core.data.kb.knowledge_base as kb
@@ -57,7 +57,7 @@ class test_http_auth_detect(unittest.TestCase):
 
     def test_http_auth_detect_uri(self):
         body = 'ABC ' * 100
-        body += 'http://abc:def@www.w3af.com/foo.bar'
+        body += '<a href="http://abc:def@www.w3af.com/foo.bar">test</a>'
         body += '</br> ' * 50
         response = HTTPResponse(200, body, self.headers, self.url, self.url, _id=1)
         self.plugin.grep(self.request, response)

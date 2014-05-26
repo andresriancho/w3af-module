@@ -1,4 +1,4 @@
-'''
+"""
 test_unssl.py
 
 Copyright 2012 Andres Riancho
@@ -17,15 +17,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
+import httpretty
 
-from nose.plugins.attrib import attr
-from w3af.plugins.tests.helper import PluginTest, PluginConfig
+from w3af.plugins.tests.helper import PluginTest, PluginConfig, MockResponse
 
 
 class TestUnSSL(PluginTest):
 
-    target_url = 'http://moth/w3af/'
+    target_url = 'http://httpretty/'
+
+    # This mocked response will be returned for both http and https
+    MOCK_RESPONSES = [MockResponse('/', 'foo bar spam',)]
 
     _run_configs = {
         'cfg': {
@@ -36,7 +39,10 @@ class TestUnSSL(PluginTest):
         }
     }
 
-    @attr('ci_fails')
+    def setUp(self):
+        super(TestUnSSL, self).setUp()
+        self._register_httpretty_uri('https', 'httpretty', 443)
+
     def test_found_unssl(self):
         cfg = self._run_configs['cfg']
         self._scan(cfg['target'], cfg['plugins'])
@@ -46,6 +52,36 @@ class TestUnSSL(PluginTest):
 
         # Now some tests around specific details of the found vuln
         vuln = vulns[0]
-        self.assertEquals(
-            vuln.get_name(), 'Secure content over insecure channel')
-        self.assertEquals(vuln.get_url().url_string, 'http://moth/w3af/')
+        self.assertEquals(vuln.get_name(), 'Secure content over insecure channel')
+        self.assertEquals(vuln.get_url().url_string, 'http://httpretty/')
+
+
+class TestNotFoundUnSSL(PluginTest):
+    """
+    Needed to create a different class since we don't want to use the
+    MOCK_RESPONSES framework.
+    """
+    target_url = 'http://httpretty/'
+
+    _run_configs = {
+        'cfg': {
+            'target': target_url,
+            'plugins': {
+                'audit': (PluginConfig('un_ssl'),),
+            }
+        }
+    }
+
+    @httpretty.activate
+    def test_not_found_unssl(self):
+        httpretty.register_uri(httpretty.GET, "http://httpretty/",
+                               body='This is NOT SECURE')
+
+        httpretty.register_uri(httpretty.GET, "https://httpretty/",
+                               body='The banking application is here.')
+
+        cfg = self._run_configs['cfg']
+        self._scan(cfg['target'], cfg['plugins'])
+
+        vulns = self.kb.get('un_ssl', 'un_ssl')
+        self.assertEquals(0, len(vulns))

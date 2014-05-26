@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 test_xurllib_integration.py
 
 Copyright 2011 Andres Riancho
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 
 from nose.plugins.attrib import attr
@@ -76,7 +76,18 @@ class TestXUrllibIntegration(unittest.TestCase):
         content_encoding, _ = headers.iget('content-encoding', '')
         test_res = 'gzip' in content_encoding or \
                    'compress' in content_encoding
+
         self.assertTrue(test_res, content_encoding)
+        self.assertIn('View HTTP response headers.', res.get_body())
+
+    def test_deflate(self):
+        url = URL(get_moth_http('/core/deflate/deflate.html'))
+        res = self.uri_opener.GET(url, cache=False)
+        headers = res.get_headers()
+        content_encoding, _ = headers.iget('content-encoding', '')
+
+        self.assertIn('deflate', content_encoding)
+        self.assertIn('View HTTP response headers.', res.get_body())
 
     def test_get_cookies(self):
         self.assertEqual(len([c for c in self.uri_opener.get_cookies()]), 0)

@@ -1,4 +1,4 @@
-'''
+"""
 url_option.py
 
 Copyright 2008 Andres Riancho
@@ -18,8 +18,8 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
-from w3af.core.controllers.exceptions import w3afException
+"""
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.options.baseoption import BaseOption
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.options.option_types import URL as URL_OPTION_TYPE
@@ -30,13 +30,13 @@ class URLOption(BaseOption):
     _type = URL_OPTION_TYPE
 
     def set_value(self, value):
-        '''
+        """
         :param value: The value parameter is set by the user interface, which
         for example sends 'True' or 'a,b,c'
 
         Based on the value parameter and the option type, I have to create a nice
         looking object like True or ['a','b','c'].
-        '''
+        """
         if isinstance(value, URL):
             value = value.url_string
             
@@ -47,4 +47,4 @@ class URLOption(BaseOption):
             return URL(value)
         except Exception, e:
             msg = 'Invalid URL configured by user, error: %s.' % e
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)

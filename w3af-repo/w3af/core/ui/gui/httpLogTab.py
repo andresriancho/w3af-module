@@ -1,4 +1,4 @@
-'''
+"""
 httpLogTab.py
 
 Copyright 2007 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a     copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import gtk
 import gobject
 import pango
@@ -27,7 +27,7 @@ import pango
 from w3af.core.ui.gui import reqResViewer, entries
 from w3af.core.ui.gui.entries import EasyTable
 from w3af.core.ui.gui.entries import wrapperWidgets, TextInput
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException, DBException
 from w3af.core.data.db.history import HistoryItem
 from w3af.core.data.options.preferences import Preferences
 from w3af.core.data.options.opt_factory import opt_factory
@@ -35,9 +35,11 @@ from w3af.core.data.options.option_list import OptionList
 
 
 class httpLogTab(entries.RememberingHPaned):
-    '''A tab that shows all HTTP requests and responses made by the framework.
+    """
+    A tab that shows all HTTP requests and responses made by the framework.
+
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     def __init__(self, w3af, padding=10, time_refresh=False):
         """Init object."""
         super(httpLogTab, self).__init__(w3af, "pane-httplogtab", 300)
@@ -62,7 +64,8 @@ class httpLogTab(entries.RememberingHPaned):
     def _initReqResViewer(self, mainvbox):
         """Create the req/res viewer."""
         self._reqResViewer = reqResViewer.reqResViewer(self.w3af,
-                                                       editableRequest=False, editableResponse=False)
+                                                       editableRequest=False,
+                                                       editableResponse=False)
         self._reqResViewer.set_sensitive(False)
         # Create the req/res selector (when a search with more
         # than one result is done, this window appears)
@@ -102,7 +105,7 @@ class httpLogTab(entries.RememberingHPaned):
         mainvbox.pack_start(self._vpan)
 
     def _popupMenu(self, tv, event):
-        '''Generate and show popup menu.'''
+        """Generate and show popup menu."""
         if event.button != 3:
             return
         # creates the whole menu only once
@@ -120,7 +123,7 @@ class httpLogTab(entries.RememberingHPaned):
         return True
 
     def _deleteSelected(self, widg=None):
-        '''Delete selected transactions.'''
+        """Delete selected transactions."""
         ids = []
         iters = []
         sel = self._lstoreTreeview.get_selection()
@@ -230,7 +233,7 @@ class httpLogTab(entries.RememberingHPaned):
         # Column for bookmark
         #TODO: Find a better way to do this. The "B" and the checkbox aren't nice
         #what we aim for is something like the stars in gmail.
-        '''
+        """
         renderer = gtk.CellRendererToggle()
         renderer.set_property('activatable', True)
         renderer.connect('toggled', self.toggle_bookmark, model)
@@ -238,7 +241,7 @@ class httpLogTab(entries.RememberingHPaned):
         column.add_attribute(renderer, "active", 1)
         column.set_sort_column_id(1)
         treeview.append_column(column)
-        '''
+        """
 
         # Column for METHOD
         column = gtk.TreeViewColumn(
@@ -303,17 +306,17 @@ class httpLogTab(entries.RememberingHPaned):
         self._searchText.set_text("")
         try:
             self.find_request_response()
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             self._empty_results()
         return
 
     def refresh_results(self):
-        '''
+        """
         TODO: IMPROVEMENT: The find_request_response will read all items from
                            the DB again. If there are no new requests BUT we're
                            already showing 1K of them, all will be read. Not
                            good for performance.
-        '''
+        """
         self.find_request_response(refresh=True)
         return True
 
@@ -383,7 +386,7 @@ class httpLogTab(entries.RememberingHPaned):
             # Please see the 5000 below
             searchResultObjects = self._historyItem.find(searchData,
                                                          result_limit=5001, orderData=[("id", "")])
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             self._empty_results()
             return
         if len(searchResultObjects) == 0:
@@ -442,8 +445,8 @@ class httpLogTab(entries.RememberingHPaned):
 
     def _show_message(self, title, msg, gtkLook=gtk.MESSAGE_INFO):
         """Show message to user as GTK dialog."""
-        dlg = gtk.MessageDialog(
-            None, gtk.DIALOG_MODAL, gtkLook, gtk.BUTTONS_OK, msg)
+        dlg = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtkLook,
+                                gtk.BUTTONS_OK, msg)
         dlg.set_title(title)
         dlg.run()
         dlg.destroy()
@@ -462,20 +465,35 @@ class httpLogTab(entries.RememberingHPaned):
         they want to show what request/response pair
         is related to the vulnerability.
         """
-        historyItem = self._historyItem.read(search_id)
-        if historyItem:
-            self._reqResViewer.request.show_object(historyItem.request)
-            self._reqResViewer.response.show_object(historyItem.response)
-            if historyItem.info:
-                buff = self._reqResViewer.info.get_buffer()
-                buff.set_text(historyItem.info)
-                self._reqResViewer.info.show()
-            else:
-                self._reqResViewer.info.hide()
-            self._reqResViewer.set_sensitive(True)
+        try:
+            history_item = self._historyItem.read(search_id)
+        except DBException:
+            msg = _('The id %s is not inside the database.')
+            self._show_message(_('Error'), msg % search_id)
+            return
+
+        # Error handling for .trace file problems
+        # https://github.com/andresriancho/w3af/issues/1101
+        try:
+            # These lines will trigger the code that reads the .trace file
+            # from disk and if they aren't there an exception will rise
+            history_item.request
+            history_item.response
+        except IOError, ioe:
+            self._show_message(_('Error'), str(ioe))
+            return
+
+        # Now we know that these two lines will work and we won't trigger
+        # https://github.com/andresriancho/w3af/issues/1101
+        self._reqResViewer.request.show_object(history_item.request)
+        self._reqResViewer.response.show_object(history_item.response)
+        if history_item.info:
+            buff = self._reqResViewer.info.get_buffer()
+            buff.set_text(history_item.info)
+            self._reqResViewer.info.show()
         else:
-            self._show_message(_('Error'), _('The id ') + str(search_id) +
-                              _('is not inside the database.'))
+            self._reqResViewer.info.hide()
+        self._reqResViewer.set_sensitive(True)
 
 
 class FilterOptions(gtk.HBox, Preferences):

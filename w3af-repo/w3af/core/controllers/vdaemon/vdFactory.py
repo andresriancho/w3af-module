@@ -1,4 +1,4 @@
-'''
+"""
 vdFactory.py
 
 Copyright 2006 Andres Riancho
@@ -18,24 +18,24 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.controllers.output_manager as om
 
 from w3af.core.controllers.vdaemon.lnxVd import lnxVd
 from w3af.core.controllers.vdaemon.winVd import winVd
 from w3af.core.controllers.intrusion_tools.execMethodHelpers import os_detection_exec
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 def get_virtual_daemon(exec_method):
-    '''
+    """
     Uses the exec_method to run remote commands and determine what's the
     remote OS is, and based on that info, it returns the corresponding virtual
     daemon.
-    '''
+    """
     try:
         os = os_detection_exec(exec_method)
-    except w3afException, w3:
+    except BaseFrameworkException, w3:
         raise w3
     else:
         if os == 'windows':
@@ -47,5 +47,5 @@ def get_virtual_daemon(exec_method):
                 'Identified remote OS as Linux, returning lnxVd object.')
             return lnxVd(exec_method)
         else:
-            raise w3afException(
+            raise BaseFrameworkException(
                 'Failed to get a virtual daemon for the remote OS: ' + os)

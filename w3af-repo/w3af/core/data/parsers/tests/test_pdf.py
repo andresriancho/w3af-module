@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-'''
+"""
 test_pdf.py
 
 Copyright 2011 Andres Riancho
@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
 import os
 
@@ -58,5 +58,4 @@ class TestPDF(unittest.TestCase):
         parsed, re_refs = parser.get_references()
         
         self.assertEqual(parsed, [])
-        self.assertEqual(re_refs, [URL('http://moth/pdf/'),])
-        
+        self.assertEqual(re_refs, [URL('http://moth/pdf/')])

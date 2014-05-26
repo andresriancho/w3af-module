@@ -1,4 +1,4 @@
-'''
+"""
 export.py
 
 Copyright 2006 Andres Riancho
@@ -18,11 +18,11 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 
 import w3af.core.data.kb.config as cf
 import w3af.core.data.request.WebServiceRequest as WebServiceRequest
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class export:

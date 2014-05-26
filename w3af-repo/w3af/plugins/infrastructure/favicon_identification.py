@@ -1,4 +1,4 @@
-'''
+"""
 favicon_identification.py
 
 Copyright 2009 Vlatko Kosturjak
@@ -23,7 +23,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import hashlib
 import os.path
 
@@ -34,15 +34,15 @@ from w3af import ROOT_PATH
 from w3af.core.controllers.plugins.infrastructure_plugin import InfrastructurePlugin
 from w3af.core.controllers.misc.decorators import runonce
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
-from w3af.core.controllers.exceptions import w3afRunOnce
+from w3af.core.controllers.exceptions import RunOnce
 from w3af.core.data.kb.info import Info
 
 
 class favicon_identification(InfrastructurePlugin):
-    '''
+    """
     Identify server software using favicon.
     :author: Vlatko Kosturjak  <kost@linux.hr> http://kost.com.hr
-    '''
+    """
 
     def __init__(self):
         InfrastructurePlugin.__init__(self)
@@ -54,14 +54,14 @@ class favicon_identification(InfrastructurePlugin):
         self._db_file = os.path.join(ROOT_PATH, 'plugins', 'infrastructure',
                                      'favicon', 'favicon-md5')
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def discover(self, fuzzable_request):
-        '''
+        """
         Identify server software using favicon.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                 (among other things) the URL to test.
-        '''
+        """
         domain_path = fuzzable_request.get_url().get_domain_path()
 
         # TODO: Maybe I should also parse the html to extract the favicon location?
@@ -117,13 +117,13 @@ class favicon_identification(InfrastructurePlugin):
                 yield md5part, favicon_desc
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin identifies software version using favicon.ico file.
 
         It checks MD5 of favicon against the MD5 database of favicons. See also:
             http://www.owasp.org/index.php/Category:OWASP_Favicon_Database_Project
             http://kost.com.hr/favicon.php
-        '''
+        """

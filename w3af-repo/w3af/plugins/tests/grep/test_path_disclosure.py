@@ -1,4 +1,4 @@
-'''
+"""
 test_path_disclosure.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
 
 import w3af.core.data.kb.knowledge_base as kb
@@ -44,17 +44,18 @@ class test_path_disclosure(unittest.TestCase):
         self.plugin.end()
         kb.kb.cleanup()
 
+    def _create_response(self, body):
+        return HTTPResponse(200, body, self.header, self.url, self.url, _id=1)
+
     def test_path_disclosure(self):
 
-        res = HTTPResponse(
-            200, 'header body footer', self.header, self.url, self.url, _id=1)
+        res = self._create_response('header body footer')
         self.plugin.grep(self.request, res)
         infos = kb.kb.get('path_disclosure', 'path_disclosure')
         self.assertEquals(len(infos), 0)
 
     def test_path_disclosure_positive(self):
-        res = HTTPResponse(200, 'header /etc/passwd footer',
-                           self.header, self.url, self.url, _id=1)
+        res = self._create_response('header /etc/passwd footer')
         self.plugin.grep(self.request, res)
 
         infos = kb.kb.get('path_disclosure', 'path_disclosure')
@@ -65,10 +66,18 @@ class test_path_disclosure(unittest.TestCase):
 
     def test_path_disclosure_calculated_webroot(self):
         kb.kb.add_url(self.url)
-        
-        res = HTTPResponse(200, 'header /var/www/foo/bar.py footer',
-                           self.header, self.url, self.url, _id=1)
+
+        res = self._create_response('header /var/www/foo/bar.py footer')
         self.plugin.grep(self.request, res)
 
         webroot = kb.kb.raw_read('path_disclosure', 'webroot')
         self.assertEqual(webroot, '/var/www')
+
+    def test_path_disclosure_false_positive_reduction(self):
+        kb.kb.add_url(self.url)
+
+        res = self._create_response('nope <a href="/var/www/foo/bar.py">x</a>')
+        self.plugin.grep(self.request, res)
+
+        infos = kb.kb.get('path_disclosure', 'path_disclosure')
+        self.assertEquals(len(infos), 0)

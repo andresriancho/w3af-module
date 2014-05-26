@@ -1,4 +1,4 @@
-'''
+"""
 dependency_check.py
 
 Copyright 2006 Andres Riancho
@@ -18,20 +18,33 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import sys
 import warnings
 import logging
 
 try:
+    # Is pip even there?
     import pip
-    USE_PIP_MODULE = True
+    # We do this in order to check for really old versions of pip
+    pip.get_installed_distributions()
 except ImportError:
-    USE_PIP_MODULE = False
+    print('We recommend you install pip before continuing.')
+    print('http://www.pip-installer.org/en/latest/installing.html')
+    HAS_PIP = False
+except AttributeError:
+    print('A very old version of pip was detected. We recommend you update your'
+          ' your pip installation before continuing:')
+    print('    sudo pip install --upgrade pip')
+    HAS_PIP = False
+else:
+    HAS_PIP = True
 
 from .lazy_load import lazy_load
-from .utils import verify_python_version, pip_installed
-from .helper_script import generate_helper_script, generate_pip_install_non_git
+from .utils import verify_python_version
+from .helper_script import (generate_helper_script,
+                            generate_pip_install_non_git,
+                            generate_pip_install_git)
 from .helper_requirements_txt import generate_requirements_txt
 from .platforms.current_platform import (SYSTEM_NAME,
                                          PKG_MANAGER_CMD,
@@ -43,14 +56,14 @@ from .platforms.current_platform import (SYSTEM_NAME,
 
     
 def dependency_check(pip_packages=PIP_PACKAGES, system_packages=SYSTEM_PACKAGES,
-                       system_name=SYSTEM_NAME, pkg_manager_cmd=PKG_MANAGER_CMD,
-                       pip_cmd=PIP_CMD, exit_on_failure=True):
-    '''
+                     system_name=SYSTEM_NAME, pkg_manager_cmd=PKG_MANAGER_CMD,
+                     pip_cmd=PIP_CMD, exit_on_failure=True):
+    """
     This function verifies that the dependencies that are needed by the
     framework core are met.
     
     :return: True if the process should exit
-    '''
+    """
     verify_python_version()
     
     disable_warnings()
@@ -59,10 +72,10 @@ def dependency_check(pip_packages=PIP_PACKAGES, system_packages=SYSTEM_PACKAGES,
     #    Check for missing python modules
     #
     failed_deps = []
-    if USE_PIP_MODULE: pip_distributions = pip.get_installed_distributions()
+    if HAS_PIP: pip_distributions = pip.get_installed_distributions()
     
     for w3af_req in pip_packages:
-        if USE_PIP_MODULE:
+        if HAS_PIP:
             dependency_specs = w3af_req.package_name, w3af_req.package_version
             for dist in pip_distributions:
                 if (dist.project_name, dist.version) == dependency_specs:
@@ -90,7 +103,7 @@ def dependency_check(pip_packages=PIP_PACKAGES, system_packages=SYSTEM_PACKAGES,
     
     os_packages = list(set(missing_os_packages))
 
-    if not pip_installed():
+    if not HAS_PIP:
         os_packages.extend(system_packages['PIP'])
 
     # All installed?
@@ -140,7 +153,7 @@ def dependency_check(pip_packages=PIP_PACKAGES, system_packages=SYSTEM_PACKAGES,
         
         if git_pkgs:
             for missing_git_pkg in git_pkgs:
-                msg += '    sudo %s install %s\n' % (pip_cmd, missing_git_pkg)
+                msg += '    %s\n' % generate_pip_install_git(pip_cmd, missing_git_pkg)
         
         print msg
     

@@ -1,4 +1,4 @@
-'''
+"""
 base_template.py
 
 Copyright 2009 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.data.constants.severity as severity
 
@@ -32,14 +32,14 @@ from w3af.core.data.kb.vuln import Vuln
 
 
 class BaseTemplate(Configurable):
-    '''
+    """
     Vulnerability templates are a way to let the user know which parameters
     need to be completed in order to add a vulnerability to the KB.
 
     This is specially useful in the new way we're going to define the exploit
     workflow in which the user will be able to add a vulnerability to the KB
     for later exploitation.
-    '''
+    """
     def __init__(self):
         self.name = ''
         self.url = URL('http://host.tld/')
@@ -48,11 +48,11 @@ class BaseTemplate(Configurable):
         self.vulnerable_parameter = ''
 
     def get_options(self):
-        '''
+        """
         In this case we provide a sample implementation since most vulnerabilities
         will have this template. If the specific vulnerability needs other params
         then it should override this implementation.
-        '''
+        """
         ol = OptionList()
 
         d = 'Vulnerability name (eg. SQL Injection)'
@@ -68,7 +68,10 @@ class BaseTemplate(Configurable):
             ' otherwise it will be sent using the HTTP request\'s body. If the'\
             ' vulnerability requires the request to be sent using multipart-'\
             'forms, the exploit will convert this url-encoded data into that'\
-            ' format.'
+            ' format.\n\n'\
+            'Enter the original parameter value, not the one which triggers'\
+            ' the vulnerability. Correct input looks like "id=2" not like'\
+            ' "id=2;cat /etc/passwd".'
         o = opt_factory('data', self.data, d, 'string', help=h)
         ol.add(o)
 
@@ -101,9 +104,9 @@ class BaseTemplate(Configurable):
             raise ValueError(msg % ', '.join(self.data))
 
     def store_in_kb(self):
-        '''
+        """
         :return: None, just stores the configured vulnerability to the KB.
-        '''
+        """
         kb_loc_a, kb_loc_b = self.get_kb_location()
         created_vulnerability = self.create_vuln()
         kb.kb.append(kb_loc_a, kb_loc_b, created_vulnerability)
@@ -112,9 +115,9 @@ class BaseTemplate(Configurable):
         return consecutive_number_generator.inc()
 
     def create_base_vuln(self):
-        '''
+        """
         :return: A vulnerability with some preconfigured settings
-        '''
+        """
         desc = 'This vulnerability was added to the knowledge-base by the'\
                ' user and represents a "%s" vulnerability.'
         desc = desc % self.get_vulnerability_name()
@@ -125,11 +128,12 @@ class BaseTemplate(Configurable):
         return v
 
     def create_vuln(self):
-        '''
-        Sample implementation of the
+        """
+        Sample implementation of the create_vuln method.
+
         :return: A vulnerability object based on the data that was configured
                  by the user with calls to set_options().
-        '''
+        """
         v = self.create_base_vuln()
 
         # User configured
@@ -154,25 +158,26 @@ class BaseTemplate(Configurable):
         return self.vulnerable_parameter
     
     def get_kb_location(self):
-        '''
+        """
         :return: A tuple with the location where the vulnerability will be saved,
                  example return value would be: ('eval', 'eval')
-        '''
+        """
         raise NotImplementedError
 
     def get_vulnerability_name(self):
-        '''
+        """
         :return: A string containing the name of the vulnerability to be added
                  to the KB, example: 'SQL Injection'. This is just a descriptive
                  string which can contain any information, not used for any
                  strict matching of vulns before exploiting.
-        '''
+        """
         raise NotImplementedError
 
     def get_vulnerability_desc(self):
-        '''
+        """
         :return: A string containing the description of the vulnerability to be
                  added to the KB, example: 'DAV misconfiguration which allows
                  file uploads using the HTTP PUT method'
-        '''
+        """
         raise NotImplementedError
+

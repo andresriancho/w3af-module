@@ -1,4 +1,4 @@
-'''
+"""
 queue_speed.py
 
 Copyright 2013 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import Queue
 import time
 
@@ -60,13 +60,17 @@ class QueueSpeed(object):
         first_item_time = [data_time for (added, data_time) in data if added][0]
         
         # Get the last logged item time
-        last_item_time = [data_time for (added, data_time) in data][-1]
+        last_item_time = data[-1][1]
         
         # Count all items that were logged
         all_items = len([True for (added, _) in data if added])
         
-        time_delta = last_item_time - first_item_time 
-        
+        time_delta = last_item_time - first_item_time
+
+        if time_delta == 0:
+            # https://github.com/andresriancho/w3af/issues/342
+            return None
+
         # Calculate RPM and return it
         return 60.0 * all_items / time_delta
 

@@ -1,4 +1,4 @@
-'''
+"""
 HTTPRequest.py
 
 Copyright 2010 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import copy
 import urllib2
 
@@ -31,8 +31,9 @@ class HTTPRequest(RequestMixIn, urllib2.Request):
 
     def __init__(self, url, data=None, headers=Headers(),
                  origin_req_host=None, unverifiable=False,
-                 cookies=True, cache=False, method=None):
-        '''
+                 cookies=True, cache=False, method=None,
+                 ignore_errors=False):
+        """
         This is a simple wrapper around a urllib2 request object which helps
         with some common tasks like serialization, cache, etc.
 
@@ -41,13 +42,14 @@ class HTTPRequest(RequestMixIn, urllib2.Request):
                                 return "POST"
                             else:
                                 return "GET"
-        '''
+        """
         #
         # Save some information for later access in an easier way
         #
         self.url_object = url
         self.cookies = cookies
         self.get_from_cache = cache
+        self.ignore_errors = ignore_errors
 
         self.method = method
         if self.method is None:
@@ -93,14 +95,14 @@ class HTTPRequest(RequestMixIn, urllib2.Request):
     
     @classmethod    
     def from_dict(cls, unserialized_dict):
-        '''
+        """
         * msgpack is MUCH faster than cPickle,
         * msgpack can't serialize python objects,
         * I have to create a dict representation of HTTPRequest to serialize it,
         * and a from_dict to have the object back
         
         :param unserialized_dict: A dict just as returned by to_dict()
-        '''
+        """
         udict = unserialized_dict
         
         method, uri = udict['method'], udict['uri']
@@ -113,8 +115,7 @@ class HTTPRequest(RequestMixIn, urllib2.Request):
         
         return cls(url, data=data, headers=headers_inst,
                    cookies=cookies, cache=cache, method=method)
- 
-        
+
     def copy(self):
         return copy.deepcopy(self)
 
@@ -122,4 +123,3 @@ class HTTPRequest(RequestMixIn, urllib2.Request):
         fmt = '<HTTPRequest "%s" (cookies:%s, cache:%s)>'
         return fmt % (self.url_object.url_string, self.cookies,
                       self.get_from_cache)
-        

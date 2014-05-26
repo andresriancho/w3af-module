@@ -1,4 +1,4 @@
-'''
+"""
 test_save.py
 
 Copyright 2012 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 from nose.plugins.attrib import attr
 
 from w3af.core.ui.console.console_ui import ConsoleUI
@@ -26,9 +26,9 @@ from w3af.core.ui.console.tests.helper import ConsoleTestHelper
 
 @attr('smoke')
 class TestSaveConsoleUI(ConsoleTestHelper):
-    '''
+    """
     Save test for the console UI.
-    '''
+    """
     def test_menu_simple_save(self):
         commands_to_run = ['plugins crawl config dir_file_bruter',
                            'set file_wordlist /etc/passwd',
@@ -76,5 +76,27 @@ class TestSaveConsoleUI(ConsoleTestHelper):
 
         expected_start_with = ('127.0.0.1',
                                '8081')
+        assert_result, msg = self.all_expected_substring_in_output(expected_start_with)
+        self.assertTrue(assert_result, msg)
+
+    def test_menu_simple_save_with_view(self):
+        """
+        Reproduces the issue at https://github.com/andresriancho/w3af/issues/474
+        where a "view" call overwrites any previously set value with the default
+        """
+        commands_to_run = ['plugins crawl config dir_file_bruter',
+                           'set file_wordlist /etc/passwd',
+                           'view',
+                           'back',
+                           'plugins crawl config dir_file_bruter',
+                           'view',
+                           'back',
+                           'exit']
+
+        self.console = ConsoleUI(commands=commands_to_run, do_upd=False)
+        self.console.sh()
+
+        expected_start_with = (' /etc/passwd   ',
+                               'The configuration has been saved.')
         assert_result, msg = self.all_expected_substring_in_output(expected_start_with)
         self.assertTrue(assert_result, msg)

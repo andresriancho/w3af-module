@@ -1,4 +1,4 @@
-'''
+"""
 pe.py
 
 Copyright 2006 Andres Riancho
@@ -18,19 +18,19 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 
 from w3af import ROOT_PATH
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class pe(object):
-    '''
+    """
     This class represents a PE file.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     def __init__(self, arch='32bit'):
         self._arch = arch
         self._shellcode = '\x90'
@@ -40,20 +40,20 @@ class pe(object):
 
     def set_shell_code(self, sc):
         if len(sc) > self._maxPayloadLen:
-            raise w3afException('Payload to long!')
+            raise BaseFrameworkException('Payload to long!')
         self._shellcode = sc
 
     def get_shell_code(self):
         return self._shellcode
 
     def dump(self):
-        '''
+        """
         :return: A string with the complete pe file.
-        '''
+        """
         try:
             template = file(self._templateFileName, 'r').read()
         except Exception, e:
-            raise w3afException(
+            raise BaseFrameworkException(
                 'Failed to open PE template file. Exception: ' + str(e))
         else:
             paddingLen = self._maxPayloadLen - len(self._shellcode)

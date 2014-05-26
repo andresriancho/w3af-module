@@ -1,4 +1,4 @@
-'''
+"""
 test_route.py
 
 Copyright 2012 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 from w3af.plugins.attack.payloads.payloads.tests.payload_test_helper import PayloadTestHelper
 from w3af.plugins.attack.payloads.payload_handler import exec_payload
 
@@ -42,7 +42,7 @@ class test_route(PayloadTestHelper):
     def test_route(self):
         result = exec_payload(self.shell, 'route', use_api=True)
         routes = result['route']
-        print routes
+
         for route_info in routes:
             dest = route_info['Destination']
             gw = route_info['Gateway']
@@ -53,8 +53,9 @@ class test_route(PayloadTestHelper):
             self.assertEqual(gw.count('.'), 3)
             self.assertEqual(mask.count('.'), 3)
             
-            self.assertTrue(iface.startswith('eth') or \
-                            iface.startswith('wlan') or \
-                            iface.startswith('ppp') or \
-                            iface.startswith('vbox') or \
+            self.assertTrue(iface.startswith('eth') or
+                            iface.startswith('wlan') or
+                            iface.startswith('ppp') or
+                            iface.startswith('vbox') or
+                            iface.startswith('lxcbr') or
                             iface.startswith('lo'), iface)

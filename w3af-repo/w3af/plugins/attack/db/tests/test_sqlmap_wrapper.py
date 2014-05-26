@@ -1,4 +1,4 @@
-'''
+"""
 test_sqlmap_wrapper.py
 
 Copyright 2012 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import os
 import shutil
 import unittest
@@ -49,7 +49,7 @@ class TestSQLMapWrapper(unittest.TestCase):
         
         self.uri_opener = ExtendedUrllib()
         
-        self.sqlmap = SQLMapWrapper(target, self.uri_opener)
+        self.sqlmap = SQLMapWrapper(target, self.uri_opener, debug=True)
     
     def tearDown(self):
         self.uri_opener.end()
@@ -73,7 +73,6 @@ class TestSQLMapWrapper(unittest.TestCase):
         vulnerable = self.sqlmap.is_vulnerable()
         self.assertTrue(vulnerable)
     
-    @attr('fails')
     def test_verify_vulnerability_ssl(self):
         uri = URL(self.SSL_SQLI_GET)
         target = Target(uri)

@@ -1,4 +1,4 @@
-'''
+"""
 http_auth_detect.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import re
 
 import w3af.core.controllers.output_manager as om
@@ -26,18 +26,18 @@ import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.data.constants.severity as severity
 import w3af.core.data.parsers.parser_cache as parser_cache
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.plugins.grep_plugin import GrepPlugin
 from w3af.core.data.kb.info import Info
 from w3af.core.data.kb.vuln import Vuln
 
 
 class http_auth_detect(GrepPlugin):
-    '''
+    """
     Find responses that indicate that the resource requires auth.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         GrepPlugin.__init__(self)
@@ -45,13 +45,13 @@ class http_auth_detect(GrepPlugin):
         self._auth_uri_regex = re.compile('.*://[\w%]*?:[\w%]*?@[\w\.]{3,40}')
 
     def grep(self, request, response):
-        '''
+        """
         Finds 401 or authentication URIs like http://user:pass@domain.com/
 
         :param request: The HTTP request object.
         :param response: The HTTP response object
         :return: None
-        '''
+        """
         # If I have a 401 code, and this URL wasn't already reported...
         if response.get_code() == 401:
 
@@ -69,10 +69,10 @@ class http_auth_detect(GrepPlugin):
             self._find_auth_uri(response)
 
     def _find_auth_uri(self, response):
-        '''
+        """
         Analyze a 200 response and report any findings of http://user:pass@domain.com/
         :return: None
-        '''
+        """
         #
         #   Analyze the HTTP URL
         #
@@ -97,7 +97,7 @@ class http_auth_detect(GrepPlugin):
         url_list = []
         try:
             DocumentParser = parser_cache.dpc.get_document_parser_for(response)
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             msg = 'Failed to find a suitable document parser. ' \
                 'Exception: ' + str(w3)
             om.out.debug(msg)
@@ -146,10 +146,10 @@ class http_auth_detect(GrepPlugin):
         om.out.information(i.get_desc())
         
     def _analyze_401(self, response):
-        '''
+        """
         Analyze a 401 response and report it.
         :return: None
-        '''
+        """
         realm = self._get_realm(response)
         
         if realm is None:
@@ -188,10 +188,10 @@ class http_auth_detect(GrepPlugin):
         om.out.information(v.get_desc())
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin greps every page and finds responses that indicate that the
         resource requires authentication.
-        '''
+        """

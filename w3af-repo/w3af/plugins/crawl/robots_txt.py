@@ -1,4 +1,4 @@
-'''
+"""
 robots_txt.py
 
 Copyright 2006 Andres Riancho
@@ -18,34 +18,34 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.controllers.output_manager as om
 import w3af.core.data.kb.knowledge_base as kb
 
 from w3af.core.controllers.plugins.crawl_plugin import CrawlPlugin
-from w3af.core.controllers.exceptions import w3afRunOnce
+from w3af.core.controllers.exceptions import RunOnce
 from w3af.core.controllers.misc.decorators import runonce
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
 from w3af.core.data.kb.info import Info
 
 
 class robots_txt(CrawlPlugin):
-    '''
+    """
     Analyze the robots.txt file and find new URLs
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         CrawlPlugin.__init__(self)
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def crawl(self, fuzzable_request):
-        '''
+        """
         Get the robots.txt file and parse it.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                 (among other things) the URL to test.
-        '''
+        """
         dirs = []
 
         base_url = fuzzable_request.get_url().base_url()
@@ -90,13 +90,13 @@ class robots_txt(CrawlPlugin):
         self.worker_pool.map(self.http_get_and_parse, dirs)
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin searches for the robots.txt file, and parses it.
 
         This file is used to as an ACL that defines what URL's a search engine
         can access. By parsing this file, you can get more information about the
         target web application.
-        '''
+        """

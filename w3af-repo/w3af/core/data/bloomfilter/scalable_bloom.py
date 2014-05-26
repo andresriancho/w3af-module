@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-'''
+"""
 scalable_bloom.py
 
 Copyright 2011 Andres Riancho
@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 from w3af.core.data.bloomfilter.bloomfilter import BloomFilter
 
 
@@ -28,7 +28,7 @@ class ScalableBloomFilter(object):
     LARGE_SET_GROWTH = 4  # faster, but takes up more memory faster
 
     def __init__(self, initial_capacity=10000, error_rate=0.001,
-                  mode=SMALL_SET_GROWTH, filter_impl=BloomFilter):
+                 mode=SMALL_SET_GROWTH, filter_impl=BloomFilter):
         """Implements a space-efficient probabilistic data structure that
         grows as more items are added while maintaining a steady false
         positive rate

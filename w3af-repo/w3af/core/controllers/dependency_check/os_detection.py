@@ -1,4 +1,4 @@
-'''
+"""
 os_detection.py
 
 Copyright 2013 Andres Riancho
@@ -18,21 +18,37 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import platform
 
 
 curr_platform = platform.system().lower()
 distro = platform.dist()
 
+
 def is_mac():
     return 'darwin' in curr_platform or 'mac' in curr_platform
+
 
 def is_linux():
     return 'linux' in curr_platform
 
+
 def is_fedora():
     return 'fedora' in distro[0]
 
+
+def is_centos():
+    return 'redhat' in distro[0]
+
+
+def is_suse():
+    return 'SuSE' in distro[0]
+
+
 def is_openbsd():
     return 'openbsd' in curr_platform
+
+
+def is_kali():
+    return 'debian' in distro and 'kali' in platform.release()

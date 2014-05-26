@@ -1,4 +1,4 @@
-'''
+"""
 w3afCore.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 import sys
 import time
@@ -38,6 +38,7 @@ from w3af.core.controllers.core_helpers.fingerprint_404 import fingerprint_404_s
 from w3af.core.controllers.core_helpers.exception_handler import ExceptionHandler
 from w3af.core.controllers.threads.threadpool import Pool
 
+from w3af.core.controllers.profiling import start_profiling, stop_profiling
 from w3af.core.controllers.misc.epoch_to_string import epoch_to_string
 from w3af.core.controllers.misc.dns_cache import enable_dns_cache
 from w3af.core.controllers.misc.number_generator import consecutive_number_generator
@@ -45,35 +46,35 @@ from w3af.core.controllers.misc.homeDir import (create_home_dir,
                                                 verify_dir_has_perm, HOME_DIR)
 from w3af.core.controllers.misc.temp_dir import (create_temp_dir, remove_temp_dir,
                                                  TEMP_DIR)
-from w3af.core.controllers.exceptions import (w3afException, w3afMustStopException,
-                                              w3afMustStopByUnknownReasonExc,
-                                              w3afMustStopByUserRequest)
+from w3af.core.controllers.exceptions import (BaseFrameworkException, ScanMustStopException,
+                                              ScanMustStopByUnknownReasonExc,
+                                              ScanMustStopByUserRequest)
 
 from w3af.core.data.url.extended_urllib import ExtendedUrllib
 from w3af.core.data.kb.knowledge_base import kb
 
 
 class w3afCore(object):
-    '''
+    """
     This is the core of the framework, it calls all plugins, handles exceptions,
     coordinates all the work, creates threads, etc.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     
     WORKER_THREADS = 20
     
     def __init__(self):
-        '''
+        """
         Init some variables and files.
         Create the URI opener.
-        '''
+        """
         # This is more than just a debug message, it's a way to force the
         # output manager thread to start it's work. I would start that thread
         # on output manager instantiation but there are issues with starting
         # threads at module import time.
         om.out.debug('Created new w3afCore instance: %s' % id(self))
-        
+
         # Create some directories, do this every time before starting a new
         # scan and before doing any other core init because these are widely
         # used
@@ -96,8 +97,6 @@ class w3afCore(object):
         self.target = w3af_core_target()
         self.strategy = w3af_core_strategy(self)
         
-        self._create_worker_pool()
-
         # FIXME: In the future, when the output_manager is not an awful singleton
         # anymore, this line should be removed and the output_manager object
         # should take a w3afCore object as a parameter in its __init__
@@ -110,13 +109,15 @@ class w3afCore(object):
         self._first_scan = True
 
     def scan_start_hook(self):
-        '''
+        """
         Create directories, threads and consumers required to perform a w3af
         scan. Used both when we init the core and when we want to clear all
         the previous results and state from an old scan and start again.
         
         :return: None
-        '''
+        """
+        start_profiling(self)
+
         if not self._first_scan:
             self.cleanup()
         
@@ -146,13 +147,13 @@ class w3afCore(object):
         fp_404_db.set_worker_pool(self.worker_pool)
     
     def start(self):
-        '''
+        """
         The user interfaces call this method to start the whole scanning
         process.
         
         @raise: This method raises almost every possible exception, so please
                 do your error handling!
-        '''
+        """
         om.out.debug('Called w3afCore.start()')
         
         self.scan_start_hook()
@@ -185,20 +186,20 @@ class w3afCore(object):
             raise
         except threading.ThreadError:
             handle_threading_error(self.status.scans_completed)
-        except w3afMustStopByUserRequest, sbur:
+        except ScanMustStopByUserRequest, sbur:
             # I don't have to do anything here, since the user is the one that
             # requested the scanner to stop. From here the code continues at the
             # "finally" clause, which simply shows a message saying that the
             # scan finished.
             om.out.information('%s' % sbur)
-        except w3afMustStopByUnknownReasonExc:
+        except ScanMustStopByUnknownReasonExc:
             #
             # TODO: Jan 31, 2011. Temporary workaround. Make w3af crash on
             # purpose so we can find out the *really* unknown error
             # conditions.
             #
             raise
-        except w3afMustStopException, wmse:
+        except ScanMustStopException, wmse:
             error = '\n**IMPORTANT** The following error was detected by'\
                     ' w3af and couldn\'t be resolved:\n%s\n' % wmse
             om.out.error(error)
@@ -208,36 +209,58 @@ class w3afCore(object):
             raise
         finally:
 
-            self.status.scan_finished()
             time_spent = self.status.get_scan_time()
             
-            msg = 'Scan finished in %s' % time_spent
-            
-            try:
-                om.out.information(msg)
-            except:
-                # In some cases we get here after a disk full exception
-                # where the output manager can't even write a log message
-                # to disk and/or the console. Seen this happen many times
-                # in LiveCDs like Backtrack that don't have "real disk space"
-                print msg
+            self._safe_message_print('Scan finished in %s' % time_spent)
+            self._safe_message_print('Stopping the core...')
 
             self.strategy.stop()
-        
             self.scan_end_hook()
 
-    def _create_worker_pool(self):
-        self.worker_pool = Pool(self.WORKER_THREADS,
-                                worker_names='WorkerThread')
+            # Make sure this line is the last one. This avoids race conditions
+            # https://github.com/andresriancho/w3af/issues/1487
+            self.status.scan_finished()
+
+    def _safe_message_print(self, msg):
+        """
+        In some cases we get here after a disk full exception where the output
+        manager can't even write a log message to disk and/or the console. Seen
+        this happen many times in LiveCDs like Backtrack that don't have "real
+        disk space"
+        """
+        try:
+            om.out.information(msg)
+        except:
+            # In some cases we get here after a disk full exception
+            # where the output manager can't even write a log message
+            # to disk and/or the console. Seen this happen many times
+            # in LiveCDs like Backtrack that don't have "real disk space"
+            print(msg)
+
+    @property
+    def worker_pool(self):
+        """
+        :return: Simple property that will always return a Pool in running state
+        """
+        if not hasattr(self, '_worker_pool'):
+            # Should get here only on the first call to "worker_pool".
+            self._worker_pool = Pool(self.WORKER_THREADS,
+                                     worker_names='WorkerThread')
+
+        if not self._worker_pool.is_running():
+            self._worker_pool = Pool(self.WORKER_THREADS,
+                                     worker_names='WorkerThread')
+
+        return self._worker_pool
         
     def cleanup(self):
-        '''
+        """
         The GTK user interface calls this when a scan has been stopped
         (or ended successfully) and the user wants to start a new scan.
         All data from the kb is deleted.
 
         :return: None
-        '''
+        """
         # End the ExtendedUrllib (clear the cache and close connections), this
         # is only useful if there was a previous scan and the user is starting
         # a new one.
@@ -269,18 +292,29 @@ class w3afCore(object):
         # because I wan't to keep the selected plugins and configurations
 
     def stop(self):
-        '''
-        This method is called by the user interface layer, when the user "clicks"
-        on the stop button.
+        """
+        This method is called by the user interface layer, when the user
+        "clicks" on the stop button.
 
         :return: None. The stop method can take some seconds to return.
-        '''
+        """
         om.out.debug('The user stopped the core, finishing threads...')
-        
+
+        # First we stop the uri opener, this will perform the following things:
+        #   * Set the _user_stopped attribute to True in uri_opener
+        #   * Make all following HTTP requests raise ScanMustStopByUserRequest
+        #   * No more HTTP requests are sent to the target
+        #   * All plugins will raise ScanMustStopByUserRequest
+        #   * Consumers start to stop because of these exceptions
+        self.uri_opener.stop()
+
+        # Then we stop the threads which move the fuzzable requests around, in
+        # some cases this won't be needed because of the effect generated by the
+        # ScanMustStopByUserRequest exception, but we better make sure the
+        # threads have died.
         if self.strategy is not None:
             self.strategy.stop()
-        self.uri_opener.stop()
-        
+
         stop_start_time = time.time()
         
         wait_max = 10 # seconds
@@ -304,51 +338,51 @@ class w3afCore(object):
         om.out.debug(msg)
     
     def quit(self):
-        '''
+        """
         The user wants to exit w3af ASAP, so we stop the scan and exit.
-        '''
+        """
         self.stop()
         self.uri_opener.end()
         remove_temp_dir(ignore_errors=True)
         
     def pause(self, pause_yes_no):
-        '''
+        """
         Pauses/Un-Pauses scan.
         :param trueFalse: True if the UI wants to pause the scan.
-        '''
+        """
         self.status.pause(pause_yes_no)
         self.strategy.pause(pause_yes_no)
         self.uri_opener.pause(pause_yes_no)
 
     def verify_environment(self):
-        '''
+        """
         Checks if all parameters where configured correctly by the user,
         which in this case is a mix of w3af_console, w3af_gui and the real
         (human) user.
-        '''
+        """
         if not self.plugins.initialized:
             msg = 'You must call the plugins.init_plugins() method before'\
                   ' calling start().'
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
 
         if not cf.cf.get('targets'):
-            raise w3afException('No target URI configured.')
+            raise BaseFrameworkException('No target URI configured.')
 
         if not len(self.plugins.get_enabled_plugins('audit'))\
         and not len(self.plugins.get_enabled_plugins('crawl'))\
         and not len(self.plugins.get_enabled_plugins('infrastructure'))\
         and not len(self.plugins.get_enabled_plugins('grep')):
-            raise w3afException(
+            raise BaseFrameworkException(
                 'No audit, grep or crawl plugins configured to run.')
 
     def scan_end_hook(self):
-        '''
+        """
         This method is called when the process ends normally or by an error.
-        '''
+        """
         try:
             # Close the output manager, this needs to be done BEFORE the end()
-            # in uri_opener because some plugins (namely xml_output) use the data
-            # from the history in their end() method. 
+            # in uri_opener because some plugins (namely xml_output) use the
+            # data from the history in their end() method.
             om.out.end_output_plugins()
             
             # Note that running "self.uri_opener.end()" here is a bad idea
@@ -365,36 +399,34 @@ class w3afCore(object):
 
         finally:
             # The scan has ended, terminate all workers
-            #
-            # The pool might be needed during the exploiting phase create a new
-            # pool in exploit_phase_prerequisites()
-            self.worker_pool.terminate()
-            self.worker_pool.join()
-            del self.worker_pool
-            
+            self.worker_pool.terminate_join()
+
+            self.exploit_phase_prerequisites()
+
             self.status.stop()
 
             # Remove all references to plugins from memory
             self.plugins.zero_enabled_plugins()
             
-            self.exploit_phase_prerequisites()
-
             # No targets to be scanned.
             self.target.clear()
 
+            # Finish the profiling
+            stop_profiling(self)
+
     def exploit_phase_prerequisites(self):
-        '''
+        """
         This method is just a way to group all the things that we'll need 
         from the core during the exploitation phase. In other words, which
         internal objects do I need alive after a scan?
-        '''
-        self._create_worker_pool()
+        """
+        pass
 
     def _home_directory(self):
-        '''
+        """
         Handle all the work related to creating/managing the home directory.
         :return: None
-        '''
+        """
         # Start by trying to create the home directory (linux: /home/user/.w3af/)
         if not create_home_dir():
             print('Failed to create the w3af home directory "%s".' % HOME_DIR)
@@ -410,10 +442,10 @@ class w3afCore(object):
             sys.exit(-3)
 
     def _tmp_directory(self):
-        '''
+        """
         Handle the creation of the tmp directory, where a lot of stuff is stored.
         Usually it's something like /tmp/w3af/<pid>/
-        '''
+        """
         try:
             create_temp_dir()
         except Exception:
@@ -422,11 +454,12 @@ class w3afCore(object):
             print msg
             sys.exit(-3)
 
+
 def handle_threading_error(scans_completed):
-    '''
+    """
     Catch threading errors such as "error: can't start new thread"
     and handle them in a specific way
-    '''
+    """
     active_threads = threading.active_count()
     
     def nice_thread_repr(alive_threads):

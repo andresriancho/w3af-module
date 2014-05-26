@@ -1,4 +1,4 @@
-'''
+"""
 helpers.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 import pprint
 import sys
@@ -77,11 +77,12 @@ def get_versions():
         
     return versions
 
+
 def create_crash_file(exception):
     filename = "w3af_crash-" + rand_alnum(5) + ".txt"
     filename = os.path.join(gettempdir(), filename)
     crash_dump = file(filename, "w")
-    crash_dump.write(_('Submit this bug here: https://sourceforge.net/apps/trac/w3af/newticket \n'))
+    crash_dump.write(_('Submit this bug here: https://github.com/andresriancho/w3af/issues/new \n'))
     crash_dump.write(get_versions())
     crash_dump.write(exception)
     crash_dump.close()

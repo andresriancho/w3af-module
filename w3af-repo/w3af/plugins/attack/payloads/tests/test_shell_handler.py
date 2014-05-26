@@ -1,4 +1,4 @@
-'''
+"""
 test_shell_handler.py
 
 Copyright 2012 Andres Riancho
@@ -17,48 +17,51 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 
 import w3af.core.data.kb.knowledge_base as kb
 
-from w3af.plugins.attack.payloads.shell_handler import get_webshells, get_shell_code
+from w3af.plugins.attack.payloads.shell_handler import (get_webshells,
+                                                        get_shell_code)
 
 
 class TestShellHandler(unittest.TestCase):
-    
+
+    TEST_CMD = 'ls'
+
     def test_get_shell_code_extension(self):
-        shells = get_shell_code('php')
+        shells = get_shell_code('php', self.TEST_CMD)
         
-        self.assertEqual(len(shells), 1)
-        php_shell_code, lang = shells[0]
+        self.assertEqual(len(shells), 2)
+        php_shell_code, lang, shellcode_generator = shells[0]
         
         self.assertEqual(lang, 'php')
         self.assertIn('echo ', php_shell_code)
 
     def test_get_shell_code_extension_force(self):
-        shells = get_shell_code('php', True)
+        shells = get_shell_code('php', self.TEST_CMD, True)
         
         self.assertEqual(len(shells), 1)
-        php_shell_code, lang = shells[0]
+        php_shell_code, lang, shellcode_generator = shells[0]
         
         self.assertEqual(lang, 'php')
         self.assertIn('echo ', php_shell_code)
 
     def test_get_shell_code_no_extension(self):
-        shells = get_shell_code('')
+        shells = get_shell_code('', self.TEST_CMD)
         
-        self.assertEqual(len(shells), 1)
-        php_shell_code, lang = shells[0]
+        self.assertEqual(len(shells), 2)
+        php_shell_code, lang, shellcode_generator = shells[0]
         
         self.assertEqual(lang, 'php')
         self.assertIn('echo ', php_shell_code)
 
     def test_get_shell_code_invalid_extension(self):
-        shells = get_shell_code('123456')
+        shells = get_shell_code('123456', self.TEST_CMD)
         
-        self.assertEqual(len(shells), 1)
-        php_shell_code, lang = shells[0]
+        self.assertEqual(len(shells), 2)
+        php_shell_code, lang, shellcode_generator = shells[0]
         
         self.assertEqual(lang, 'php')
         self.assertIn('echo ', php_shell_code)

@@ -1,4 +1,4 @@
-'''
+"""
 frontpage_version.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import re
 
 import w3af.core.controllers.output_manager as om
@@ -26,8 +26,8 @@ import w3af.core.data.kb.knowledge_base as kb
 
 from w3af.core.controllers.plugins.infrastructure_plugin import InfrastructurePlugin
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
-from w3af.core.controllers.exceptions import w3afRunOnce
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import RunOnce
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.misc.decorators import runonce
 
 from w3af.core.data.bloomfilter.scalable_bloom import ScalableBloomFilter
@@ -35,10 +35,10 @@ from w3af.core.data.kb.info import Info
 
 
 class frontpage_version(InfrastructurePlugin):
-    '''
+    """
     Search FrontPage Server Info file and if it finds it will determine its version.
     :author: Viktor Gazdag ( woodspeed@gmail.com )
-    '''
+    """
     VERSION_RE = re.compile('FPVersion="(.*?)"', re.IGNORECASE)
     ADMIN_URL_RE = re.compile('FPAdminScriptUrl="(.*?)"', re.IGNORECASE)
     AUTHOR_URL_RE = re.compile('FPAuthorScriptUrl="(.*?)"', re.IGNORECASE)
@@ -49,14 +49,14 @@ class frontpage_version(InfrastructurePlugin):
         # Internal variables
         self._analyzed_dirs = ScalableBloomFilter()
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def discover(self, fuzzable_request):
-        '''
+        """
         For every directory, fetch a list of files and analyze the response.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                     (among other things) the URL to test.
-        '''
+        """
         for domain_path in fuzzable_request.get_url().get_directories():
 
             if domain_path not in self._analyzed_dirs:
@@ -69,7 +69,7 @@ class frontpage_version(InfrastructurePlugin):
                 try:
                     response = self._uri_opener.GET(frontpage_info_url,
                                                     cache=True)
-                except w3afException, w3:
+                except BaseFrameworkException, w3:
                     msg = 'Failed to GET Frontpage Server _vti_inf.html file: "'
                     msg += frontpage_info_url + \
                         '". Exception: "' + str(w3) + '".'
@@ -82,12 +82,13 @@ class frontpage_version(InfrastructurePlugin):
                         self._analyze_response(response)
 
     def _analyze_response(self, response):
-        '''
-        It seems that we have found a _vti_inf file, parse it and analyze the content!
+        """
+        It seems that we have found a _vti_inf file, parse it and analyze the
+        content!
 
         :param response: The http response object for the _vti_inf file.
         :return: None. All the info is saved to the kb.
-        '''
+        """
         version_mo = self.VERSION_RE.search(response.get_body())
         admin_mo = self.ADMIN_URL_RE.search(response.get_body())
         author_mo = self.AUTHOR_URL_RE.search(response.get_body())
@@ -120,21 +121,21 @@ class frontpage_version(InfrastructurePlugin):
             self._analyze_author(response, author_mo)
 
         else:
-            # This is strange... we found a _vti_inf file, but there is no frontpage
-            # information in it... IPS? WAF? honeypot?
+            # This is strange... we found a _vti_inf file, but there is no
+            # frontpage information in it... IPS? WAF? honeypot?
             msg = '[IMPROVEMENT] Invalid frontPage configuration information'\
                   ' found at %s (id: %s).'
             msg = msg % (response.get_url(), response.id)
             om.out.debug(msg)
 
     def _analyze_admin(self, response, frontpage_admin):
-        '''
+        """
         Analyze the admin URL.
 
         :param response: The http response object for the _vti_inf file.
         :param frontpage_admin: A regex match object.
         :return: None. All the info is saved to the kb.
-        '''
+        """
         admin_location = response.get_url().get_domain_path().url_join(
             frontpage_admin.group(1))
         
@@ -161,13 +162,13 @@ class frontpage_version(InfrastructurePlugin):
         om.out.information(i.get_desc())
 
     def _analyze_author(self, response, frontpage_author):
-        '''
+        """
         Analyze the author URL.
 
         :param response: The http response object for the _vti_inf file.
         :param frontpage_author: A regex match object.
         :return: None. All the info is saved to the kb.
-        '''
+        """
         author_location = response.get_url().get_domain_path().url_join(
             frontpage_author.group(1))
 
@@ -193,13 +194,13 @@ class frontpage_version(InfrastructurePlugin):
         om.out.information(i.get_desc())
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin searches for the FrontPage Server Info file and if it finds
         it will try to determine the version of the Frontpage Server Extensions.
         The file is located inside the web server webroot. For example:
 
             - http://localhost/_vti_inf.html
-        '''
+        """

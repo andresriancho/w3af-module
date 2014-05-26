@@ -1,4 +1,4 @@
-'''
+"""
 delayedExecutionFactory.py
 
 Copyright 2006 Andres Riancho
@@ -18,19 +18,19 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.controllers.output_manager as om
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.intrusion_tools.execMethodHelpers import os_detection_exec
 from w3af.core.controllers.intrusion_tools.crontabHandler import crontabHandler
 from w3af.core.controllers.intrusion_tools.atHandler import atHandler
 
 
 class delayedExecutionFactory(object):
-    '''
+    """
     This class constructs a delayedExecution based on the remote operating system.
-    '''
+    """
     def __init__(self, exec_method):
         self._exec_method = exec_method
 
@@ -41,5 +41,5 @@ class delayedExecutionFactory(object):
         elif os == 'linux':
             return crontabHandler(self._exec_method)
         else:
-            raise w3afException(
+            raise BaseFrameworkException(
                 'Failed to create a delayed execution handler.')

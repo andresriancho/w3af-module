@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-'''
+"""
 Copyright 2012 Andres Riancho
 
 This file is part of w3af, http://w3af.org/ .
@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import random
 import unittest
 import string
@@ -273,6 +273,14 @@ class TestDiskList(unittest.TestCase):
         disk_list.cleanup()
         
         self.assertFalse(db.table_exists(table_name))
+
+    def test_remove_table_then_add(self):
+        disk_list = DiskList()
+        disk_list.append(1)
+
+        disk_list.cleanup()
+
+        self.assertRaises(AssertionError, disk_list.append, 1)
 
     def test_islice(self):
         disk_list = DiskList()

@@ -1,4 +1,4 @@
-'''
+"""
 seed.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import traceback
 
 from multiprocessing.dummy import Queue, Process
@@ -26,24 +26,24 @@ from multiprocessing.dummy import Queue, Process
 import w3af.core.controllers.output_manager as om
 import w3af.core.data.kb.knowledge_base as kb
 
-from w3af.core.controllers.exceptions import (w3afMustStopException,
-                                         w3afMustStopOnUrlError)
+from w3af.core.controllers.exceptions import (ScanMustStopException,
+                                         ScanMustStopOnUrlError)
 from w3af.core.controllers.core_helpers.consumers.constants import POISON_PILL
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.request.factory import create_fuzzable_requests
 
 
 class seed(Process):
-    '''
+    """
     Consumer thread that takes fuzzable requests from a Queue that's populated
     by the crawl plugins and identified vulnerabilities by performing various
     requests.
-    '''
+    """
 
     def __init__(self, w3af_core):
-        '''
+        """
         :param w3af_core: The w3af core that we'll use for status reporting
-        '''
+        """
         super(seed, self).__init__(name='SeedController')
         self.name = 'Seed'
 
@@ -65,14 +65,14 @@ class seed(Process):
         return
 
     def seed_output_queue(self, target_urls):
-        '''
+        """
         Create the first fuzzable request objects based on the targets and put
         them in the output Queue.
 
         This will start the whole discovery process, since plugins are going
         to consume from that Queue and then put their results in it again in
         order to continue discovering.
-        '''
+        """
         # We only want to scan pages that are in current scope
         in_scope = lambda fr: fr.get_url().get_domain() == url.get_domain()
 
@@ -83,7 +83,7 @@ class seed(Process):
                 #    in a list and use them as our bootstrap URLs
                 #
                 response = self._w3af_core.uri_opener.GET(url, cache=True)
-            except (w3afMustStopOnUrlError, w3afException, w3afMustStopException), w3:
+            except (ScanMustStopOnUrlError, BaseFrameworkException, ScanMustStopException), w3:
                 om.out.error('The target URL: %s is unreachable.' % url)
                 om.out.error('Error description: %s' % w3)
             except Exception, e:

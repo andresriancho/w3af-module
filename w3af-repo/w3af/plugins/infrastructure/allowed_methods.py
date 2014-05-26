@@ -1,4 +1,4 @@
-'''
+"""
 allowed_methods.py
 
 Copyright 2006 Andres Riancho
@@ -18,13 +18,13 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.controllers.output_manager as om
 import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.data.constants.response_codes as response_codes
 
 from w3af.core.controllers.plugins.infrastructure_plugin import InfrastructurePlugin
-from w3af.core.controllers.exceptions import w3afRunOnce
+from w3af.core.controllers.exceptions import RunOnce
 from w3af.core.controllers.misc.group_by_min_key import group_by_min_key
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_list import OptionList
@@ -33,30 +33,26 @@ from w3af.core.data.kb.info import Info
 
 
 class allowed_methods(InfrastructurePlugin):
-    '''
+    """
     Enumerate the allowed methods of an URL.
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
-    BAD_CODES = set(
-        [response_codes.UNAUTHORIZED, response_codes.NOT_IMPLEMENTED,
-         response_codes.METHOD_NOT_ALLOWED, response_codes.FORBIDDEN])
+    BAD_CODES = {response_codes.UNAUTHORIZED, response_codes.NOT_IMPLEMENTED,
+                 response_codes.METHOD_NOT_ALLOWED, response_codes.FORBIDDEN}
 
-    DAV_METHODS = set(
-        ['DELETE', 'PROPFIND', 'PROPPATCH', 'COPY', 'MOVE', 'LOCK',
-         'UNLOCK', 'MKCOL'])
-    COMMON_METHODS = set(['OPTIONS', 'GET', 'HEAD', 'POST', 'TRACE', 'PUT'])
-    UNCOMMON_METHODS = set(['*', 'SUBSCRIPTIONS', 'NOTIFY', 'DEBUG', 'TRACK',
-                            'POLL', 'PIN', 'INVOKE', 'SUBSCRIBE', 'UNSUBSCRIBE'])
+    DAV_METHODS = {'DELETE', 'PROPFIND', 'PROPPATCH', 'COPY', 'MOVE', 'LOCK',
+                   'UNLOCK', 'MKCOL'}
+    COMMON_METHODS = {'OPTIONS', 'GET', 'HEAD', 'POST', 'TRACE', 'PUT'}
+    UNCOMMON_METHODS = {'*', 'SUBSCRIPTIONS', 'NOTIFY', 'DEBUG', 'TRACK',
+                        'POLL', 'PIN', 'INVOKE', 'SUBSCRIBE', 'UNSUBSCRIBE'}
     # Methods taken from http://www.w3.org/Protocols/HTTP/Methods.html
-    PROPOSED_METHODS = set(
-        ['CHECKOUT', 'SHOWMETHOD', 'LINK', 'UNLINK', 'CHECKIN',
-         'TEXTSEARCH', 'SPACEJUMP', 'SEARCH', 'REPLY'])
-    EXTRA_METHODS = set(
-        ['CONNECT', 'RMDIR', 'MKDIR', 'REPORT', 'ACL', 'DELETE',
-         'INDEX', 'LABEL', 'INVALID'])
-    VERSION_CONTROL = set(['VERSION_CONTROL', 'CHECKIN', 'UNCHECKOUT', 'PATCH',
-                           'MERGE', 'MKWORKSPACE', 'MKACTIVITY', 'BASELINE_CONTROL'])
+    PROPOSED_METHODS = {'CHECKOUT', 'SHOWMETHOD', 'LINK', 'UNLINK', 'CHECKIN',
+                        'TEXTSEARCH', 'SPACEJUMP', 'SEARCH', 'REPLY'}
+    EXTRA_METHODS = {'CONNECT', 'RMDIR', 'MKDIR', 'REPORT', 'ACL', 'DELETE',
+                     'INDEX', 'LABEL', 'INVALID'}
+    VERSION_CONTROL = {'VERSION_CONTROL', 'CHECKIN', 'UNCHECKOUT', 'PATCH',
+                       'MERGE', 'MKWORKSPACE', 'MKACTIVITY', 'BASELINE_CONTROL'}
 
     def __init__(self):
         InfrastructurePlugin.__init__(self)
@@ -75,17 +71,17 @@ class allowed_methods(InfrastructurePlugin):
         self._report_dav_only = True
 
     def discover(self, fuzzable_request):
-        '''
+        """
         Uses several techniques to try to find out what methods are allowed for
         an URL.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                     (among other things) the URL to test.
-        '''
+        """
         if not self._exec:
             # This will remove the plugin from the infrastructure
             # plugins to be run.
-            raise w3afRunOnce()
+            raise RunOnce()
 
         # Run the plugin.
         if self._exec_one_time:
@@ -110,13 +106,12 @@ class allowed_methods(InfrastructurePlugin):
         allowed_methods.sort()
         
         return allowed_methods, id_list
-        
-        
+
     def _identify_with_OPTIONS(self, url):
-        '''
+        """
         Find out what methods are allowed using OPTIONS
         :param url: Where to check.
-        '''
+        """
         allowed_methods = []
         id_list = []
 
@@ -135,8 +130,7 @@ class allowed_methods(InfrastructurePlugin):
                     allowed_methods = list(set(allowed_methods))
         
         return allowed_methods, id_list
-            
-    
+
     def _identify_with_bruteforce(self, url):
         id_list = []
         allowed_methods = []
@@ -189,8 +183,13 @@ class allowed_methods(InfrastructurePlugin):
         return allowed_methods, id_list
 
     def _analyze_methods(self, url, allowed_methods, id_list):
+        # Sometimes there are no allowed methods, which means that our plugin
+        # failed to identify any methods.
+        if not allowed_methods:
+            return
+
         # Check for DAV
-        if set(allowed_methods).intersection(self.DAV_METHODS):
+        elif set(allowed_methods).intersection(self.DAV_METHODS):
             # dav is enabled!
             # Save the results in the KB so that other plugins can use this
             # information
@@ -215,12 +214,11 @@ class allowed_methods(InfrastructurePlugin):
             i['methods'] = allowed_methods
             
             kb.kb.append(self, 'methods', i)
-            
 
     def end(self):
-        '''
+        """
         Print the results.
-        '''
+        """
         # First I get the data from the kb
         all_info_obj = kb.kb.get('allowed_methods', 'methods')
         dav_info_obj = kb.kb.get('allowed_methods', 'dav-methods')
@@ -263,9 +261,9 @@ class allowed_methods(InfrastructurePlugin):
                 om.out.information('- ' + i)
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
 
         d1 = 'Execute plugin only one time'
@@ -283,31 +281,31 @@ class allowed_methods(InfrastructurePlugin):
         return ol
 
     def set_options(self, options_list):
-        '''
-        This method sets all the options that are configured using the user interface
-        generated by the framework using the result of get_options().
+        """
+        This method sets all the options that are configured using the user
+        interface generated by the framework using the result of get_options().
 
         :param OptionList: A dictionary with the options for the plugin.
         :return: No value is returned.
-        '''
+        """
         self._exec_one_time = options_list['execOneTime'].get_value()
         self._report_dav_only = options_list['reportDavOnly'].get_value()
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin finds which HTTP methods are enabled for a URI.
 
         Two configurable parameters exist:
             - execOneTime
             - reportDavOnly
 
-        If "execOneTime" is set to True, then only the methods in the webroot are
-        enumerated. If "reportDavOnly" is set to True, this plugin will only
+        If "execOneTime" is set to True, then only the methods in the webroot
+        are enumerated. If "reportDavOnly" is set to True, this plugin will only
         report the enabled method list if DAV methods have been found.
 
         The plugin will try to use the OPTIONS method to enumerate all available
         methods, if that fails, a manual enumeration is done.
-        '''
+        """

@@ -1,4 +1,4 @@
-'''
+"""
 test_opt_factory.py
 
 Copyright 2011 Andres Riancho
@@ -17,12 +17,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import os
 import unittest
 
 from w3af import ROOT_PATH
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.parsers.url import URL as URL_KLASS
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_types import (
@@ -33,11 +33,13 @@ from w3af.core.data.options.option_types import (
 
 class TestOptionFactory(unittest.TestCase):
 
+    SHORT_INPUT_FILE = '%ROOT_PATH%/core/data/options/tests/test.txt'
+    INPUT_FILE = os.path.relpath(os.path.join(ROOT_PATH, 'core', 'data',
+                                              'options', 'tests', 'test.txt'))
+
     def test_factory_ok(self):
-        input_file = os.path.relpath(os.path.join(ROOT_PATH, 'core', 'data',
-                                                  'options', 'tests',
-                                                  'test.txt'))
-        output_file = input_file
+        input_file = self.INPUT_FILE
+        output_file = self.INPUT_FILE
 
         data = {BOOL: [('true', True),],
                 INT: [('1', 1),],
@@ -103,7 +105,7 @@ class TestOptionFactory(unittest.TestCase):
                 err = '%s for an option of type %s should raise an exception.'
                 try:
                     opt_factory('name', fake_value, 'desc', _type)
-                except w3afException:
+                except BaseFrameworkException:
                     self.assertTrue(True)
                 else:
                     self.assertTrue(False, err % (fake_value, _type))
@@ -135,3 +137,28 @@ class TestOptionFactory(unittest.TestCase):
             self.assertIsInstance(opt.get_desc(), basestring)
             self.assertIsInstance(opt.get_type(), basestring)
             self.assertIsInstance(opt.get_help(), basestring)
+
+    def test_root_path_variable_get(self):
+        opt = opt_factory('name', self.INPUT_FILE, 'desc', INPUT_FILE,
+                          'help', 'tab1')
+
+        self.assertEqual(opt.get_value_for_profile(), self.SHORT_INPUT_FILE)
+        self.assertEqual(opt.get_value_str(), self.INPUT_FILE)
+
+    def test_root_path_variable_init(self):
+        opt = opt_factory('name', self.SHORT_INPUT_FILE, 'desc', INPUT_FILE,
+                          'help', 'tab1')
+
+        self.assertEqual(opt.get_value_for_profile(), self.SHORT_INPUT_FILE)
+        self.assertEqual(opt.get_value_str(), self.INPUT_FILE)
+        self.assertEqual(opt._value, self.INPUT_FILE)
+
+    def test_root_path_variable_set(self):
+        opt = opt_factory('name', self.SHORT_INPUT_FILE, 'desc', INPUT_FILE,
+                          'help', 'tab1')
+
+        opt.set_value(self.SHORT_INPUT_FILE)
+
+        self.assertEqual(opt.get_value_for_profile(), self.SHORT_INPUT_FILE)
+        self.assertEqual(opt.get_value_str(), self.INPUT_FILE)
+        self.assertEqual(opt._value, self.INPUT_FILE)

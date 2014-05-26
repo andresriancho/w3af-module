@@ -1,4 +1,4 @@
-'''
+"""
 test_form_filler.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
 
 from nose.plugins.attrib import attr
@@ -40,6 +40,15 @@ class TestSmartFill(unittest.TestCase):
 
     def test_ip_case_insensitive(self):
         self.assertEquals(smart_fill('IP'), '127.0.0.1')
+
+    def test_ip_memoized(self):
+        result_1 = smart_fill('ip')
+        result_2 = smart_fill('ip')
+
+        self.assertEquals(result_1, '127.0.0.1')
+        self.assertIs(result_1, result_2)
+
+        self.assertIn(('ip',), smart_fill.cache.d)
 
     def test_default(self):
         self.assertEquals(smart_fill('foobar'), '56')

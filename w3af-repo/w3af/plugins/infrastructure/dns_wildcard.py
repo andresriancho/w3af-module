@@ -1,4 +1,4 @@
-'''
+"""
 dns_wildcard.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import re
 import socket
 
@@ -26,32 +26,32 @@ import w3af.core.controllers.output_manager as om
 import w3af.core.data.kb.knowledge_base as kb
 
 from w3af.core.controllers.plugins.infrastructure_plugin import InfrastructurePlugin
-from w3af.core.controllers.exceptions import w3afException, w3afRunOnce
+from w3af.core.controllers.exceptions import BaseFrameworkException, RunOnce
 from w3af.core.controllers.misc.decorators import runonce
-from w3af.core.controllers.misc.levenshtein import relative_distance_lt
+from w3af.core.controllers.misc.fuzzy_string_cmp import fuzzy_not_equal
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.kb.info import Info
 
 
 class dns_wildcard(InfrastructurePlugin):
-    '''
+    """
     Find out if www.site.com and site.com return the same page.
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     SIMPLE_IP_RE = re.compile('\d?\d?\d\.\d?\d?\d\.\d?\d?\d\.\d?\d?\d')
 
     def __init__(self):
         InfrastructurePlugin.__init__(self)
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def discover(self, fuzzable_request):
-        '''
+        """
         Get www.site.com and site.com and compare responses.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                     (among other things) the URL to test.
-        '''
+        """
 
         # Only do all this if this is a domain name!
         if not self.SIMPLE_IP_RE.match(fuzzable_request.get_url().get_domain()):
@@ -74,9 +74,9 @@ class dns_wildcard(InfrastructurePlugin):
             self._test_IP(original_response, domain)
 
     def _test_IP(self, original_response, domain):
-        '''
+        """
         Check if http://ip(domain)/ == http://domain/
-        '''
+        """
         try:
             ip_address = socket.gethostbyname(domain)
         except:
@@ -88,12 +88,12 @@ class dns_wildcard(InfrastructurePlugin):
 
         try:
             modified_response = self._uri_opener.GET(ip_url, cache=True)
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             msg = 'An error occurred while fetching IP address URL in ' \
                   ' dns_wildcard plugin: "%s"' % w3
             om.out.debug(msg)
         else:
-            if relative_distance_lt(modified_response.get_body(),
+            if fuzzy_not_equal(modified_response.get_body(),
                                     original_response.get_body(), 0.35):
 
                 desc = 'The contents of %s and %s differ.' 
@@ -108,19 +108,19 @@ class dns_wildcard(InfrastructurePlugin):
                 om.out.information(i.get_desc())
 
     def _test_DNS(self, original_response, dns_wildcard_url):
-        '''
+        """
         Check if http://www.domain.tld/ == http://domain.tld/
-        '''
+        """
         headers = Headers([('Host', dns_wildcard_url.get_domain())])
         try:
             modified_response = self._uri_opener.GET(
                 original_response.get_url(),
                 cache=True,
                 headers=headers)
-        except w3afException:
+        except BaseFrameworkException:
             return
         else:
-            if relative_distance_lt(modified_response.get_body(),
+            if fuzzy_not_equal(modified_response.get_body(),
                                     original_response.get_body(), 0.35):
                 desc = 'The target site has NO DNS wildcard, and the contents' \
                        ' of "%s" differ from the contents of "%s".'
@@ -145,10 +145,10 @@ class dns_wildcard(InfrastructurePlugin):
                 om.out.information(i.get_desc())
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin compares the contents of www.site.com and site.com and tries
         to verify if the target site has a DNS wildcard configuration or not.
-        '''
+        """

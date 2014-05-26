@@ -1,4 +1,4 @@
-'''
+"""
 test_http_vs_https_dist.py
 
 Copyright 2011 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import copy
 import unittest
 
@@ -32,14 +32,14 @@ import w3af.core.data.kb.knowledge_base as kb
 from w3af.plugins.tests.helper import PluginTest, PluginConfig
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
-from w3af.core.controllers.exceptions import w3afRunOnce
+from w3af.core.controllers.exceptions import RunOnce
 from w3af.plugins.tests.helper import onlyroot
 
 
 class test_http_vs_https_dist(unittest.TestCase):
-    '''
+    """
     :author: Javier Andalia <jandalia =at= gmail.com>
-    '''
+    """
 
     test_url = URL('http://host.tld')
     tracedict = {'localhost': {1: ('192.168.1.1', False),
@@ -121,8 +121,8 @@ class test_http_vs_https_dist(unittest.TestCase):
         om.out.information.assert_called_once_with(result)
 
     def test_discover_runonce(self):
-        ''' Discovery routine must be executed only once. Upcoming calls should
-        fail'''
+        """ Discovery routine must be executed only once. Upcoming calls should
+        fail"""
         url = URL('https://host.tld/')
         fuzz_req = FuzzableRequest(url)
 
@@ -130,7 +130,7 @@ class test_http_vs_https_dist(unittest.TestCase):
         plugininst._has_permission = MagicMock(side_effect=[True, True])
 
         plugininst.discover(fuzz_req)
-        self.assertRaises(w3afRunOnce, plugininst.discover, fuzz_req)
+        self.assertRaises(RunOnce, plugininst.discover, fuzz_req)
 
     def test_not_root_user(self):
         plugininst = hvshsdist.http_vs_https_dist()
@@ -143,9 +143,9 @@ class test_http_vs_https_dist(unittest.TestCase):
             self.assertIn(ecall, om_mock.mock_calls)
 
     def _mock_traceroute(self, trace_resp_1, trace_resp_2):
-        '''
+        """
         Helper method: Mocks scapy 'traceroute' function
-        '''
+        """
         https_tracerout_obj_1 = Mock()
         https_tracerout_obj_1.get_trace = MagicMock(return_value=trace_resp_1)
         resp_tuple_1 = (https_tracerout_obj_1, None)

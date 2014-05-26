@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-'''
+"""
 test_profile.py
 
 Copyright 2012 Andres Riancho
@@ -19,16 +19,21 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
+import os
 
 from nose.plugins.attrib import attr
 
+from w3af import ROOT_PATH
 from w3af.core.controllers.w3afCore import w3afCore
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class TestCoreProfiles(unittest.TestCase):
+
+    INPUT_FILE = os.path.relpath(os.path.join(ROOT_PATH, 'plugins', 'audit',
+                                              'ssl_certificate', 'ca.pem'))
 
     @attr('smoke')
     def test_use_profile(self):
@@ -79,16 +84,16 @@ class TestCoreProfiles(unittest.TestCase):
         w3af_core.profiles.remove_profile('unittest-remove')
 
         self.assertRaises(
-            w3afException, w3af_core.profiles.use_profile, 'unittest-remove')
+            BaseFrameworkException, w3af_core.profiles.use_profile, 'unittest-remove')
 
     def test_remove_profile_not_exists(self):
         w3af_core = w3afCore()
         self.assertRaises(
-            w3afException, w3af_core.profiles.remove_profile, 'not-exists')
+            BaseFrameworkException, w3af_core.profiles.remove_profile, 'not-exists')
 
     @attr('smoke')
     def test_use_all_profiles(self):
-        '''
+        """
         This test catches the errors in my profiles that generate these messages:
 
         ***************************************************************************
@@ -108,7 +113,7 @@ class TestCoreProfiles(unittest.TestCase):
         this message. If this warning does not disappear you can manually edit
         the profile file to fix it.
         ***************************************************************************
-        '''
+        """
         w3af_core = w3afCore()
         valid, invalid = w3af_core.profiles.get_profile_list('.')
 
@@ -121,10 +126,10 @@ class TestCoreProfiles(unittest.TestCase):
             w3af_core.profiles.use_profile(profile_name, workdir='.')
 
     def test_cant_start_new_thread_bug(self):
-        '''
+        """
         This tests that https://github.com/andresriancho/w3af/issues/56 was
         properly fixed after the change in how sqlite threads were managed.
-        '''
+        """
         w3af_core = w3afCore()
         valid, _ = w3af_core.profiles.get_profile_list('.')
 
@@ -133,3 +138,13 @@ class TestCoreProfiles(unittest.TestCase):
                 profile_name = profile_inst.get_name()
 
                 w3af_core.profiles.use_profile(profile_name, workdir='.')
+
+    def test_use_profile_variable_replace(self):
+        w3af_core = w3afCore()
+        w3af_core.profiles.use_profile('OWASP_TOP10', workdir='.')
+
+        plugin_opts = w3af_core.plugins.get_plugin_options('audit',
+                                                           'ssl_certificate')
+        ca_path = plugin_opts['caFileName'].get_value()
+        self.assertEqual(ca_path, self.INPUT_FILE)
+

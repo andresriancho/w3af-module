@@ -1,4 +1,4 @@
-'''
+"""
 update_scan_db.py
 
 Copyright 2012 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import urllib2
 import sys
 
@@ -27,7 +27,7 @@ target_path = 'scan_database.db'
 response = urllib2.urlopen(scan_db_url)
 db_content = response.read()
 
-if 'Source: http://cirt.net' not in db_content:
+if 'Source: https://cirt.net' not in db_content:
     print 'db_tests download failed'
     sys.exit(-1)
 

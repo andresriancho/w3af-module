@@ -1,4 +1,4 @@
-'''
+"""
 google.py
 
 Copyright 2006 Andres Riancho
@@ -18,13 +18,13 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import re
 import urllib
 import json
 
 from w3af.core.controllers import output_manager as om
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.search_engines.search_engine import SearchEngine
@@ -41,14 +41,14 @@ GOOGLE_PRIORITY_SEARCH_SEQ = ('GAjaxSearch', 'GMobileSearch',
 
 
 class google(SearchEngine):
-    '''
+    """
     This class is a wrapper for doing google searches. It allows the user to do
     GET requests to the mobile version, the Ajax API and the standard www.google.com
     page.
 
     :author: Andres Riancho ((andres.riancho@gmail.com))
     :author: Floyd Fuh (floyd_fuh@yahoo.de)
-    '''
+    """
 
     def __init__(self, uri_opener):
         SearchEngine.__init__(self)
@@ -58,31 +58,31 @@ class google(SearchEngine):
         return self.search(query, 0, count=limit)
 
     def search(self, query, start, count=10):
-        '''
+        """
         Perform a google search and return the resulting links (URLs).
 
         :param query: The query that we want to perform in the search engine
         :param start: The first result item
         :param count: How many results to get from start
-        '''
+        """
         return self._do_ordered_search(query, start, count)
 
     def page_search(self, query, start, count=10):
-        '''
+        """
         Perform a *standard* google search and return the google result
         pages (HTML).
 
         :param query: The query that we want to perform in the search engine
         :param start: The first result item
         :param count: How many results to get from start
-        '''
+        """
         return GStandardSearch(self._uri_opener, query, start, count).pages
 
     def _do_ordered_search(self, query, start, count):
-        '''
+        """
         Do the Google search by calling the Google API searchers in the order
         specified in GOOGLE_PRIORITY_SEARCH_SEQ
-        '''
+        """
         res = []
         _globals = globals()
         curr_count = count
@@ -113,10 +113,10 @@ FINISHED_BAD = 2
 
 
 class GoogleAPISearch(object):
-    '''
+    """
     'Abstract' base class for the Google API search implementations. This class
     shouldn't be instantiated.
-    '''
+    """
 
     def __init__(self, uri_opener):
         self._status = IS_NEW
@@ -135,8 +135,8 @@ class GoogleAPISearch(object):
         if self._status == IS_NEW:
             try:
                 self._pages = self._do_google_search()
-            except w3afException, w3:
-                om.out.error('%s' % w3)
+            except BaseFrameworkException, w3:
+                om.out.debug('%s' % w3)
                 self._status = FINISHED_BAD
             else:
                 self._status = FINISHED_OK
@@ -166,35 +166,35 @@ class GoogleAPISearch(object):
         return self._uri_opener.GET(url, headers=headers)
 
     def _do_google_search(self):
-        '''
+        """
         Perform the google search based on implementation. This method has
-        to be overriden by subclasses.
-        '''
+        to be overridden by subclasses.
+        """
         pass
 
     def _extract_links(self, pages):
-        '''
-        Return list of URLs found in pages. Must be overriden by subclasses.
-        '''
+        """
+        Return list of URLs found in pages. Must be overridden by subclasses.
+        """
         pass
 
 
 class GAjaxSearch(GoogleAPISearch):
-    '''
+    """
     Search the web using Google's AJAX API. Note that Google restricts
     this API to return only the first 64 results.
-    '''
+    """
 
     GOOGLE_AJAX_SEARCH_URL = "http://ajax.googleapis.com/ajax/services/search/web?"
     GOOGLE_AJAX_MAX_RES_PER_PAGE = 8
     GOOGLE_AJAX_MAX_START_INDEX = 56
 
     def __init__(self, uri_opener, query, start=0, count=10):
-        '''
+        """
         :param query: query to perform
         :param start: start index.
         :param count: amount of results to fetch
-        '''
+        """
         GoogleAPISearch.__init__(self, uri_opener)
         self._query = query
         self._start = start
@@ -222,22 +222,22 @@ class GAjaxSearch(GoogleAPISearch):
             try:
                 resp = self._do_GET(google_url_instance)
             except Exception, e:
-                raise w3afException(
-                    'Failed to GET google.com AJAX API: "%s"' % e)
+                msg = 'Failed to GET google.com AJAX API: "%s"'
+                raise BaseFrameworkException(msg % e)
 
             try:
                 # Parse the response. Convert the json string into a py dict.
                 parsed_resp = json.loads(resp.get_body())
             except ValueError:
                 # ValueError: No JSON object could be decoded
-                msg = 'Invalid JSON returned by Google, got "%s"' % resp.get_body()
-                raise w3afException(msg)
+                msg = 'Invalid JSON returned by Google, got "%s"'
+                raise BaseFrameworkException(msg % resp.get_body())
 
             # Expected response code is 200; otherwise raise Exception
             if parsed_resp.get('responseStatus') != 200:
                 msg = 'Invalid JSON format returned by Google, response status'\
                       ' needs to be 200, got "%s" instead.'
-                raise w3afException(msg % parsed_resp.get('responseDetails'))
+                raise BaseFrameworkException(msg % parsed_resp.get('responseDetails'))
 
             # Update result pages
             res_pages.append(resp)
@@ -259,9 +259,9 @@ class GAjaxSearch(GoogleAPISearch):
 
 
 class GStandardSearch(GoogleAPISearch):
-    '''
+    """
     Search the web with standard Google webpage.
-    '''
+    """
 
     GOOGLE_SEARCH_URL = "http://www.google.com/search?"
 
@@ -272,11 +272,11 @@ class GStandardSearch(GoogleAPISearch):
     NEXT_PAGE_STR = '<strong>Next</strong></a></td>'
 
     def __init__(self, uri_opener, query, start=0, count=10):
-        '''
+        """
         :param query: query to perform
         :param start: start index.
         :param count: amount of results to fetch
-        '''
+        """
         GoogleAPISearch.__init__(self, uri_opener)
         self._query = query
         self._start = start
@@ -301,7 +301,7 @@ class GStandardSearch(GoogleAPISearch):
             # string in response
             if GOOGLE_SORRY_PAGE in response:
                 msg = 'Google is telling us to stop doing automated tests.'
-                raise w3afException(msg)
+                raise BaseFrameworkException(msg)
 
             if not self._has_more_items(response.get_body()):
                 there_is_more = False
@@ -346,10 +346,10 @@ class GStandardSearch(GoogleAPISearch):
 
 
 class GMobileSearch(GStandardSearch):
-    '''
+    """
     Search the web using Google's Mobile search. Note that Google doesn't
     restrict the access to this page right now.
-    '''
+    """
     GOOGLE_SEARCH_URL = "http://www.google.com/xhtml?"
 
     # Used to extract URLs from Google responses
@@ -361,11 +361,11 @@ class GMobileSearch(GStandardSearch):
     NEXT_PAGE_STR = 'Next</span></a></td></tr>'
 
     def __init__(self, uri_opener, query, start=0, count=10):
-        '''
+        """
         :param query: query to perform
         :param start: start index.
         :param count: amount of results to fetch
-        '''
+        """
         GoogleAPISearch.__init__(self, uri_opener)
         self._query = query
         self._start = start
@@ -389,7 +389,7 @@ class GMobileSearch(GStandardSearch):
 
             if GOOGLE_SORRY_PAGE in response:
                 msg = 'Google is telling us to stop doing automated tests.'
-                raise w3afException(msg)
+                raise BaseFrameworkException(msg)
 
             if not self._has_more_items(response.get_body()):
                 there_is_more = False
@@ -401,9 +401,9 @@ class GMobileSearch(GStandardSearch):
 
 
 class GoogleResult(object):
-    '''
+    """
     This is a dummy class that represents a search engine result.
-    '''
+    """
     def __init__(self, url):
         if not isinstance(url, URL):
             msg = 'The url __init__ parameter of a GoogleResult object must'

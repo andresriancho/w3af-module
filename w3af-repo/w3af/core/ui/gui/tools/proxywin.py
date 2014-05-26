@@ -25,7 +25,7 @@ import gobject
 from w3af.core.ui.gui import reqResViewer, helpers, entries, httpLogTab
 from w3af.core.ui.gui.entries import ConfigOptions, StatusBar
 
-from w3af.core.controllers.exceptions import w3afException, w3afProxyException
+from w3af.core.controllers.exceptions import BaseFrameworkException, ProxyException
 from w3af.core.controllers.daemons.localproxy import LocalProxy
 
 from w3af.core.data.options import option_types 
@@ -53,7 +53,7 @@ class ProxiedRequests(entries.RememberingWindow):
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
     """
     def __init__(self, w3af):
-        '''Constructor.'''
+        """Constructor."""
         super(ProxiedRequests, self).__init__(w3af, "proxytool",
                                               _("w3af - Proxy"),
                                               "Using_the_Proxy",
@@ -159,7 +159,7 @@ class ProxiedRequests(entries.RememberingWindow):
         self.show()
 
     def _init_options(self):
-        '''Init options.'''
+        """Init options."""
         self.like_initial = True
         self.pref = ConfigOptions(self.w3af, self, 'proxy_options')
         
@@ -256,7 +256,7 @@ class ProxiedRequests(entries.RememberingWindow):
             
             try:
                 self._start_proxy()
-            except w3afProxyException:
+            except ProxyException:
                 # Ups, port looks already used..:(
                 # Let's show alert and focus Options tab
                 self.w3af.mainwin.sb(_("Failed to start local proxy"))
@@ -279,7 +279,7 @@ class ProxiedRequests(entries.RememberingWindow):
                 self.pref.get_value('proxy', 'methodtrap'))
             self.proxy.set_fix_content_length(
                 self.pref.get_value('proxy', 'fixlength'))
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             self.show_alert(_("Invalid configuration!\n" + str(w3)))
 
         self._prev_ip_port = new_port
@@ -312,7 +312,7 @@ class ProxiedRequests(entries.RememberingWindow):
         
         try:
             self.proxy = LocalProxy(ip, int(port))
-        except w3afProxyException, w3:
+        except ProxyException, w3:
             if not silent:
                 self.show_alert(_(str(w3)))
             raise w3
@@ -364,7 +364,7 @@ class ProxiedRequests(entries.RememberingWindow):
         try:
             http_resp = helpers.coreWrap(self.proxy.send_raw_request,
                                          self.fuzzable, headers, data)
-        except w3afException:
+        except BaseFrameworkException:
             return
         else:
             self.fuzzable = None

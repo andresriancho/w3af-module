@@ -1,4 +1,4 @@
-'''
+"""
 history.py
 
 Copyright 2009 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 from __future__ import with_statement
 
 import os
@@ -49,7 +49,7 @@ def verify_has_db(meth):
 
 
 class HistoryItem(object):
-    '''Represents history item.'''
+    """Represents history item."""
 
     _db = None
     _DATA_TABLE = 'data_table'
@@ -64,6 +64,7 @@ class HistoryItem(object):
     _INDEX_COLUMNS = ('alias',)
 
     _EXTENSION = '.trace'
+    _MSGPACK_CANARY = 'cute-and-yellow'
 
     id = None
     _request = None
@@ -96,9 +97,9 @@ class HistoryItem(object):
                 os.mkdir(self._session_dir)
     
     def init_db(self):
-        '''
+        """
         Init history table and indexes.
-        '''
+        """
         with self.history_lock:
             tablename = self.get_table_name()
             if not self._db.table_exists(tablename):
@@ -136,10 +137,10 @@ class HistoryItem(object):
     
     @verify_has_db
     def find(self, searchData, result_limit=-1, orderData=[], full=False):
-        '''Make complex search.
+        """Make complex search.
         search_data = {name: (value, operator), ...}
         orderData = [(name, direction)]
-        '''
+        """
         result = []
         sql = 'SELECT * FROM ' + self._DATA_TABLE
         where = WhereHelper(searchData)
@@ -167,7 +168,7 @@ class HistoryItem(object):
         return result
 
     def _load_from_row(self, row, full=True):
-        '''Load data from row with all columns.'''
+        """Load data from row with all columns."""
         self.id = row[0]
         self.url = row[1]
         self.code = row[2]
@@ -186,34 +187,58 @@ class HistoryItem(object):
     
     def _load_from_file(self, id):
         fname = self._get_fname_for_id(id)
-        #
-        #    Due to some concurrency issues, we need to perform this check
-        #    before we try to read the .trace file.
-        #
-        if not os.path.exists(fname):
-
-            for _ in xrange(1 / 0.05):
-                time.sleep(0.05)
-                if os.path.exists(fname):
-                    break
-            else:
-                msg = 'Timeout expecting trace file to be written "%s"' % fname
-                raise IOError(msg)
+        WAIT_TIME = 0.05
 
         #
-        #    Ok... the file exists, but it might still be being written
+        #    Due to some concurrency issues, we need to perform these checks
         #
-        req_res = open(fname, 'rb')
-        request_dict, response_dict = msgpack.load(req_res, use_list=True)
-        req_res.close()
-        
-        request = HTTPRequest.from_dict(request_dict)
-        response = HTTPResponse.from_dict(response_dict)
-        return (request, response)
+        for _ in xrange(int(1 / WAIT_TIME)):
+            if not os.path.exists(fname):
+                time.sleep(WAIT_TIME)
+                continue
+
+            # Ok... the file exists, but it might still be being written
+            req_res = open(fname, 'rb')
+
+            try:
+                data = msgpack.load(req_res, use_list=True)
+            except ValueError:
+                # ValueError: Extra data. returned when msgpack finds invalid
+                # data in the file
+                req_res.close()
+                time.sleep(WAIT_TIME)
+                continue
+
+            try:
+                request_dict, response_dict, canary = data
+            except TypeError:
+                # https://github.com/andresriancho/w3af/issues/1101
+                # 'NoneType' object is not iterable
+                req_res.close()
+                time.sleep(WAIT_TIME)
+                continue
+
+            if not canary == self._MSGPACK_CANARY:
+                # read failed, most likely because the file write is not
+                # complete but for some reason it was a valid msgpack file
+                req_res.close()
+                time.sleep(WAIT_TIME)
+                continue
+
+            # Success!
+            req_res.close()
+
+            request = HTTPRequest.from_dict(request_dict)
+            response = HTTPResponse.from_dict(response_dict)
+            return request, response
+
+        else:
+            msg = 'Timeout expecting trace file to be ready "%s"' % fname
+            raise IOError(msg)
 
     @verify_has_db
     def delete(self, _id=None):
-        '''Delete data from DB by ID.'''
+        """Delete data from DB by ID."""
         if _id is None:
             _id = self.id
             
@@ -229,7 +254,7 @@ class HistoryItem(object):
 
     @verify_has_db
     def load(self, _id=None, full=True, retry=True):
-        '''Load data from DB by ID.'''
+        """Load data from DB by ID."""
         if not _id:
             _id = self.id
 
@@ -257,8 +282,8 @@ class HistoryItem(object):
                     self._db.commit()
                     self.load(_id=_id, full=full, retry=False)
                 else:
-                    # This is the second time load() is called and we end up here,
-                    # raise an exception and finish our pain.
+                    # This is the second time load() is called and we end up
+                    # here, raise an exception and finish our pain.
                     msg = ('An internal error occurred while searching for '
                            'id "%s", even after commit/retry' % _id)
                     raise DBException(msg)
@@ -267,13 +292,13 @@ class HistoryItem(object):
 
     @verify_has_db
     def read(self, _id, full=True):
-        '''Return item by ID.'''
+        """Return item by ID."""
         result_item = self.__class__()
         result_item.load(_id, full)
         return result_item
 
     def save(self):
-        '''Save object into DB.'''
+        """Save object into DB."""
         resp = self.response
         values = []
         values.append(resp.get_id())
@@ -316,7 +341,9 @@ class HistoryItem(object):
         fname = self._get_fname_for_id(self.id)
         
         req_res = open(fname, 'wb')
-        data = self.request.to_dict(), self.response.to_dict()
+        data = (self.request.to_dict(),
+                self.response.to_dict(),
+                self._MSGPACK_CANARY)
         msgpack.dump(data, req_res)
         req_res.close()
         
@@ -335,26 +362,26 @@ class HistoryItem(object):
         return self._INDEX_COLUMNS
 
     def _update_field(self, name, value):
-        '''Update custom field in DB.'''
+        """Update custom field in DB."""
         sql = 'UPDATE ' + self._DATA_TABLE
         sql += ' SET ' + name + ' = ? '
         sql += ' WHERE id = ?'
         self._db.execute(sql, (value, self.id))
 
     def update_tag(self, value, force_db=False):
-        '''Update tag.'''
+        """Update tag."""
         self.tag = value
         if force_db:
             self._update_field('tag', value)
 
     def toggle_mark(self, force_db=False):
-        '''Toggle mark state.'''
+        """Toggle mark state."""
         self.mark = not self.mark
         if force_db:
             self._update_field('mark', int(self.mark))
 
     def clear(self):
-        '''Clear history and delete all trace files.'''
+        """Clear history and delete all trace files."""
         if self._db is None:
             return
 

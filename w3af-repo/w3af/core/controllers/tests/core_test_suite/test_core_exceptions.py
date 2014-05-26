@@ -1,4 +1,4 @@
-'''
+"""
 test_core_exceptions.py
 
 Copyright 2011 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 import os
 import shutil
@@ -30,28 +30,28 @@ from w3af.core.data.parsers.url import URL
 from w3af.core.controllers.ci.moth import get_moth_http
 from w3af.core.controllers.w3afCore import w3afCore
 from w3af.core.controllers.misc.factory import factory
-from w3af.core.controllers.exceptions import (w3afMustStopException,
-                                              w3afMustStopByUnknownReasonExc,
-                                              w3afMustStopByUserRequest)
+from w3af.core.controllers.exceptions import (ScanMustStopException,
+                                              ScanMustStopByUnknownReasonExc,
+                                              ScanMustStopByUserRequest)
 from w3af.plugins.tests.helper import create_target_option_list
 
 
 @attr('moth')
 class TestCoreExceptions(unittest.TestCase):
-    '''
+    """
     TODO: Think about mocking all calls to ExtendedUrllib in order to avoid
           being tagged as 'moth'.
-    '''
+    """
     PLUGIN = 'w3af.core.controllers.tests.exception_raise'
     
     def setUp(self):
-        '''
+        """
         This is a rather complex setUp since I need to move the
         exception_raise.py plugin to the plugin directory in order to be able
         to run it afterwards.
 
         In the tearDown method, I'll remove the file.
-        '''
+        """
         self.w3afcore = w3afCore()
         
         target_opts = create_target_option_list(URL(get_moth_http()))
@@ -73,10 +73,10 @@ class TestCoreExceptions(unittest.TestCase):
         self.w3afcore.quit()
                         
     def test_stop_on_must_stop_exception(self):
-        '''
-        Verify that the w3afMustStopException stops the scan.
-        '''
-        self.exception_plugin.exception_to_raise = w3afMustStopException
+        """
+        Verify that the ScanMustStopException stops the scan.
+        """
+        self.exception_plugin.exception_to_raise = ScanMustStopException
         
         with patch('w3af.core.controllers.w3afCore.om.out') as om_mock:
             self.w3afcore.start()
@@ -86,17 +86,17 @@ class TestCoreExceptions(unittest.TestCase):
             self.assertIn(call.error(error), om_mock.mock_calls)
 
     def test_stop_unknown_exception(self):
-        '''
-        Verify that the w3afMustStopByUnknownReasonExc stops the scan.
-        '''
-        self.exception_plugin.exception_to_raise = w3afMustStopByUnknownReasonExc
-        self.assertRaises(w3afMustStopByUnknownReasonExc, self.w3afcore.start)
+        """
+        Verify that the ScanMustStopByUnknownReasonExc stops the scan.
+        """
+        self.exception_plugin.exception_to_raise = ScanMustStopByUnknownReasonExc
+        self.assertRaises(ScanMustStopByUnknownReasonExc, self.w3afcore.start)
                 
     def test_stop_by_user_request(self):
-        '''
-        Verify that the w3afMustStopByUserRequest stops the scan.
-        '''
-        self.exception_plugin.exception_to_raise = w3afMustStopByUserRequest
+        """
+        Verify that the ScanMustStopByUserRequest stops the scan.
+        """
+        self.exception_plugin.exception_to_raise = ScanMustStopByUserRequest
         
         with patch('w3af.core.controllers.w3afCore.om.out') as om_mock:
             self.w3afcore.start()

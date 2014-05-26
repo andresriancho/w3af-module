@@ -1,4 +1,4 @@
-'''
+"""
 html.py
 
 Copyright 2006 Andres Riancho
@@ -18,68 +18,91 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.controllers.output_manager as om
 import w3af.core.data.dc.form as form
 
 from w3af.core.data.parsers.sgml import SGMLParser
+from w3af.core.data.parsers.utils.re_extract import ReExtract
 
 
 class HTMLParser(SGMLParser):
-    '''
+    """
     This class parses HTML's.
 
     @authors: Andres Riancho (andres.riancho@gmail.com)
               Javier Andalia (jandalia =AT= GMAIL.COM)
-    '''
+    """
 
     def __init__(self, http_resp):
-
         # An internal list to be used to save input tags found
         # outside of the scope of a form tag.
         self._saved_inputs = []
+
         # For <textarea> elems parsing
         self._textarea_tag_name = ""
         self._textarea_data = ""
+
         # For <select> elems parsing
         self._selects = []
+
         # Save for using in form parsing
         self._source_url = http_resp.get_url()
+
+        self._re_urls = set()
+
         # Call parent's __init__
         SGMLParser.__init__(self, http_resp)
 
+    @staticmethod
+    def can_parse(http_resp):
+        """
+        :param http_resp: A http response object that contains a document of
+                          type HTML / PDF / WML / etc.
+
+        :return: True if the document parameter is a string that contains an
+                 HTML document.
+        """
+        if 'html' in http_resp.content_type.lower():
+            return True
+
+        return False
+
     def data(self, data):
-        '''
+        """
         Overriding parent's. Called by the main parser when a text node
         is found
-        '''
+        """
         if self._inside_textarea:
             self._textarea_data = data.strip()
 
-    def _pre_parse(self, http_resp):
-        '''
-        :param http_resp: The HTTP response document that contains the
-        HTML document inside its body.
-        '''
-        SGMLParser._pre_parse(self, http_resp)
-        assert self._base_url, 'The base URL must be set.'
+        elif self._inside_script:
+            re_extract = ReExtract(data.strip(), self._base_url, self._encoding)
+            self._re_urls.update(re_extract.get_references())
+
+    @property
+    def references(self):
+        """
+        Override to return the references parsed from the JavaScript code using
+        regular expressions.
+        """
+        return list(self._parsed_urls), list(self._re_urls - self._parsed_urls)
 
     def _form_elems_generic_handler(self, tag, attrs):
         side = 'inside' if self._inside_form else 'outside'
         default = lambda *args: None
-        meth = getattr(self,
-                       '_handle_' + tag + '_tag_' + side + '_form',
-                       default)
+        handler = '_handle_%s_tag_%s_form' % (tag, side)
+        meth = getattr(self, handler, default)
         meth(tag, attrs)
 
     ## <form> handler methods
     def _handle_form_tag_start(self, tag, attrs):
-        '''
+        """
         Handle the form tags.
 
         This method also looks if there are "pending inputs" in the
         self._saved_inputs list and parses them.
-        '''
+        """
         SGMLParser._handle_form_tag_start(self, tag, attrs)
 
         # Get the 'method'

@@ -1,4 +1,4 @@
-'''
+"""
 FileNameMutant.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import urllib
 import re
 
@@ -26,11 +26,15 @@ from w3af.core.data.fuzzer.mutants.urlparts_mutant import URLPartsMutant
 from w3af.core.data.dc.data_container import DataContainer
 from w3af.core.data.request.HTTPQsRequest import HTTPQSRequest
 
+CHUNK_RE = re.compile(r'([a-zA-Z0-9]+)')
+CHUNK_RE_2 = re.compile(r'[a-zA-Z0-9]')
+
 
 class FileNameMutant(URLPartsMutant):
-    '''
+    """
     This class is a filename mutant.
-    '''
+    """
+
     def __init__(self, freq):
         URLPartsMutant.__init__(self, freq)
 
@@ -38,9 +42,9 @@ class FileNameMutant(URLPartsMutant):
         return 'url filename'
 
     def get_url(self):
-        '''
+        """
         :return: The URL, as modified by "set_mod_value()"
-                '''
+        """
         domain_path = self._freq.get_url().get_domain_path()
 
         # Please note that this double encoding is needed if we want to work
@@ -51,7 +55,7 @@ class FileNameMutant(URLPartsMutant):
             encoded = urllib.quote_plus(encoded, safe=self._safe_encode_chars)
 
         domain_path.set_file_name(self._mutant_dc['start'] + encoded +
-                                self._mutant_dc['end'])
+                                  self._mutant_dc['end'])
         return domain_path
 
     get_uri = get_url
@@ -76,9 +80,9 @@ class FileNameMutant(URLPartsMutant):
         raise ValueError(msg)
 
     def found_at(self):
-        '''
+        """
         :return: A string representing WHAT was fuzzed.
-        '''
+        """
         fmt = '"%s", using HTTP method %s. The modified parameter was the URL'\
               ' filename, with value: "%s".'
         return fmt % (self.get_url(), self.get_method(), self.get_mod_value())
@@ -86,7 +90,7 @@ class FileNameMutant(URLPartsMutant):
     @staticmethod
     def create_mutants(freq, mutant_str_list, fuzzable_param_list,
                        append, fuzzer_config, data_container=None):
-        '''
+        """
         This is a very important method which is called in order to create
         mutants. Usually called from fuzzer.py module.
         
@@ -95,7 +99,7 @@ class FileNameMutant(URLPartsMutant):
                                     he wants to fuzz. Chunks:
                                         foo.bar.html
                                         0   1   2
-        '''
+        """
         if not fuzzer_config['fuzz_url_filenames']:
             return []
 
@@ -104,7 +108,7 @@ class FileNameMutant(URLPartsMutant):
 
         res = []
         fname = freq.get_url().get_file_name()
-        fname_chunks = [x for x in re.split(r'([a-zA-Z0-9]+)', fname) if x]
+        fname_chunks = [x for x in CHUNK_RE.split(fname) if x]
 
         for idx, fn_chunk in enumerate(fname_chunks):
 
@@ -113,7 +117,7 @@ class FileNameMutant(URLPartsMutant):
 
             for mutant_str in mutant_str_list:
 
-                if re.match('[a-zA-Z0-9]', fn_chunk):
+                if CHUNK_RE_2.match(fn_chunk):
                     divided_fname = DataContainer()
                     divided_fname['start'] = ''.join(fname_chunks[:idx])
                     divided_fname['end'] = ''.join(fname_chunks[idx + 1:])
@@ -135,7 +139,8 @@ class FileNameMutant(URLPartsMutant):
                     m.set_double_encoding(False)
                     res.append(m)
 
-                    # The same but with a different type of encoding! (mod_rewrite)
+                    # The same but with a different type of encoding!
+                    # (mod_rewrite)
                     m2 = m.copy()
                     m2.set_safe_encode_chars('/')
 

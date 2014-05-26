@@ -1,4 +1,4 @@
-'''
+"""
 file_upload.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os.path
 import tempfile
 
@@ -40,14 +40,16 @@ from w3af.core.data.kb.vuln import Vuln
 
 
 class file_upload(AuditPlugin):
-    '''
+    """
     Uploads a file and then searches for the file inside all known directories.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     TEMPLATE_DIR = os.path.join(ROOT_PATH, 'core', 'data', 'constants',
                                 'file_templates')
+    UPLOAD_PATHS = ['uploads', 'upload', 'file', 'user', 'files', 'downloads',
+                    'download', 'up', 'down']
 
     def __init__(self):
         AuditPlugin.__init__(self)
@@ -56,12 +58,12 @@ class file_upload(AuditPlugin):
         self._extensions = ['gif', 'html', 'bmp', 'jpg', 'png', 'txt']
 
     def audit(self, freq, orig_response):
-        '''
+        """
         Searches for file upload vulns.
 
         :param freq: A FuzzableRequest
-        '''
-        if freq.get_method().upper() == 'POST' and len(freq.get_file_vars()) != 0:
+        """
+        if freq.get_method().upper() == 'POST' and len(freq.get_file_vars()):
 
             for file_parameter in freq.get_file_vars():
                 fileh_filen_list = self._create_files()
@@ -78,16 +80,16 @@ class file_upload(AuditPlugin):
                                               mutants,
                                               self._analyze_result)
 
-            self._remove_files(fileh_filen_list)
+                self._remove_files(fileh_filen_list)
 
     def _create_files(self):
-        '''
+        """
         If the extension is in the templates dir, open it and return the handler.
         If the extension isn't in the templates dir, create a file with random
         content, open it and return the handler.
 
         :return: A list of tuples with (file handler, file name)
-        '''
+        """
         result = []
 
         for ext in self._extensions:
@@ -103,8 +105,8 @@ class file_upload(AuditPlugin):
                 content = file(
                     os.path.join(self.TEMPLATE_DIR, template_filename)).read()
             else:
-                # Since I don't have a template for this file extension, I'll simply
-                # put some random alnum inside the file
+                # Since I don't have a template for this file extension, I'll
+                # simply put some random alnum inside the file
                 content = rand_alnum(64)
 
             # Write content to target
@@ -119,7 +121,7 @@ class file_upload(AuditPlugin):
         return result
 
     def _remove_files(self, fileh_filen_list):
-        '''
+        """
         Close all open files and remove them from disk. This is the reverse of
         _create_files method.
 
@@ -136,7 +138,7 @@ class file_upload(AuditPlugin):
         >>> dir_before == dir_after
         True
 
-        '''
+        """
         for tmp_file_handle, tmp_file_name in fileh_filen_list:
             try:
                 tmp_file_handle.close()
@@ -146,41 +148,40 @@ class file_upload(AuditPlugin):
                 pass
 
     def _analyze_result(self, mutant, mutant_response):
-        '''
+        """
         Analyze results of the _send_mutant method.
 
         In this case, check if the file was uploaded to any of the known
         directories, or one of the "default" ones like "upload" or "files".
-        '''
-        if self._has_no_bug(mutant):
+        """
+        if self._has_bug(mutant):
+            return
 
-            # Gen expr for directories where I can search for the uploaded file
-            domain_path_list = set(u.get_domain_path() for u in
-                                   kb.kb.get_all_known_urls())
+        # Gen expr for directories where I can search for the uploaded file
+        domain_path_list = set(u.get_domain_path() for u in
+                               kb.kb.get_all_known_urls())
 
-            # FIXME: Note that in all cases where I'm using kb's url_object info
-            # I'll be making a mistake if the audit plugin is run before all
-            # crawl plugins haven't run yet, since I'm not letting them
-            # find all directories; which will make the current plugin run with
-            # less information.
+        # FIXME: Note that in all cases where I'm using kb's url_object info
+        # I'll be making a mistake if the audit plugin is run before all
+        # crawl plugins haven't run yet, since I'm not letting them
+        # find all directories; which will make the current plugin run with
+        # less information.
+        url_generator = self._generate_urls(domain_path_list,
+                                            mutant.uploaded_file_name)
+        mutant_repeater = repeat(mutant)
+        http_response_repeater = repeat(mutant_response)
+        args = izip(url_generator, mutant_repeater, http_response_repeater)
 
-            url_generator = self._generate_urls(
-                domain_path_list, mutant.uploaded_file_name)
-            mutant_repeater = repeat(mutant)
-            http_response_repeater = repeat(mutant_response)
-            args = izip(url_generator, mutant_repeater, http_response_repeater)
-
-            self.worker_pool.map_multi_args(self._confirm_file_upload,
-                                               args)
+        self.worker_pool.map_multi_args(self._confirm_file_upload, args)
 
     def _confirm_file_upload(self, path, mutant, http_response):
-        '''
+        """
         Confirms if the file was uploaded to path
 
         :param path: The URL where we suspect that a file was uploaded to.
         :param mutant: The mutant that originated the file on the remote end
         :param http_response: The HTTP response asociated with sending mutant
-        '''
+        """
         get_response = self._uri_opener.GET(path, cache=False)
 
         if not is_404(get_response) and self._has_no_bug(mutant):
@@ -200,19 +201,15 @@ class file_upload(AuditPlugin):
             v['file_vars'] = mutant.get_file_vars()
 
             self.kb_append_uniq(self, 'file_upload', v)
-            return
 
     def _generate_urls(self, domain_path_list, uploaded_file_name):
-        '''
+        """
         :param url: A URL where the uploaded_file_name could be
         :param uploaded_file_name: The name of the file that was uploaded to the server
         :return: A list of paths where the file could be.
-        '''
-        tmp = ['uploads', 'upload', 'file', 'user', 'files', 'downloads',
-               'download', 'up', 'down']
-
+        """
         for url in domain_path_list:
-            for default_path in tmp:
+            for default_path in self.UPLOAD_PATHS:
                 for sub_url in url.get_directories():
                     possible_location = sub_url.url_join(default_path + '/')
                     possible_location = possible_location.url_join(
@@ -220,9 +217,9 @@ class file_upload(AuditPlugin):
                     yield possible_location
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
 
         d = 'Extensions that w3af will try to upload through the form.'
@@ -235,20 +232,20 @@ class file_upload(AuditPlugin):
         return ol
 
     def set_options(self, options_list):
-        '''
+        """
         This method sets all the options that are configured using the user interface
         generated by the framework using the result of get_options().
 
         :param OptionList: A dictionary with the options for the plugin.
         :return: No value is returned.
-        '''
+        """
         self._extensions = options_list['extensions'].get_value()
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin will try to expoit insecure file upload forms.
 
         One configurable parameter exists:
@@ -269,4 +266,4 @@ class file_upload(AuditPlugin):
         After uploading the file, this plugin will try to find it on common
         directories like "upload" and "files" on every know directory. If the
         file is found, a vulnerability exists.
-        '''
+        """

@@ -1,4 +1,4 @@
-'''
+"""
 csv_file.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 import csv
 import itertools
@@ -33,11 +33,11 @@ from w3af.core.data.options.option_list import OptionList
 
 
 class csv_file(OutputPlugin):
-    '''
+    """
     Export identified vulnerabilities to a CSV file.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         OutputPlugin.__init__(self)
@@ -50,22 +50,29 @@ class csv_file(OutputPlugin):
     information = error = console = debug = log_enabled_plugins = do_nothing
 
     def end(self):
-        '''
+        """
         Exports the vulnerabilities and informations to the user configured file.
-        '''
+        """
         all_vulns = kb.kb.get_all_vulns()
         all_infos = kb.kb.get_all_infos()
 
         self.output_file = os.path.expanduser(self.output_file)
 
         try:
-            csv_writer = csv.writer(
-                open(self.output_file, 'wb'), delimiter=',',
-                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            output_handler = file(self.output_file, 'wb')
+        except IOError, ioe:
+            msg = 'Failed to open the output file for writing: "%s"'
+            om.out.error(msg % ioe)
+            return
+
+        try:
+            csv_writer = csv.writer(output_handler, delimiter=',',
+                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
         except Exception, e:
             msg = 'An exception was raised while trying to open the '
-            msg += ' output file. Exception: "%s"' % e
-            om.out.error(msg)
+            msg += ' CSV writer. Exception: "%s"'
+            om.out.error(msg % e)
+            output_handler.close()
             return
 
         for data in itertools.chain(all_vulns, all_infos):
@@ -85,34 +92,37 @@ class csv_file(OutputPlugin):
                 msg += ' vulnerabilities to the output file. Exception: "%s"'
                 msg = msg % e
                 om.out.error(msg)
+                output_handler.close()
                 return
 
+        output_handler.close()
+
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin exports all identified vulnerabilities and informations
         to the given CSV file.
 
         One configurable parameter exists:
             - output_file
-        '''
+        """
 
     def set_options(self, option_list):
-        '''
+        """
         Sets the Options given on the OptionList to self. The options are the
         result of a user entering some data on a window that was constructed
         using the XML Options that was retrieved from the plugin using get_options()
 
         :return: No value is returned.
-        '''
+        """
         self.output_file = option_list['output_file'].get_value()
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
 
         d = 'The name of the output file where the vulnerabilities will be saved'

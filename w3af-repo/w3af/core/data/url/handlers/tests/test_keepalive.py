@@ -1,4 +1,4 @@
-'''
+"""
 test_keepalive.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import socket
 import unittest
 import time
@@ -30,7 +30,7 @@ from mock import MagicMock, Mock
 from nose.plugins.attrib import attr
 
 from w3af.core.controllers.ci.moth import get_moth_http
-from w3af.core.controllers.exceptions import w3afException, w3afMustStopException
+from w3af.core.controllers.exceptions import BaseFrameworkException, ScanMustStopException
 from w3af.core.data.url.handlers.keepalive import (KeepAliveHandler,
                                               ConnectionManager,
                                               HTTPResponse,
@@ -56,10 +56,10 @@ class TestKeepalive(unittest.TestCase):
         self.req = Mock()
 
     def test_get_and_remove_conn(self):
-        '''
+        """
         Each requested connection must be closed by calling 'remove_connection'
         when the server doesn't support persistent HTTP Connections
-        '''
+        """
         kah = self.kahdler
         host = self.host
         conn = self.conn
@@ -95,7 +95,7 @@ class TestKeepalive(unittest.TestCase):
     def test_timeout(self):
         """
         Ensure that kah raises 'URLTimeoutError' when timeouts occur and raises
-        'w3afMustStopException' when the timeout limit is reached.
+        'ScanMustStopException' when the timeout limit is reached.
         """
         kah = self.kahdler
         host = self.host
@@ -117,7 +117,7 @@ class TestKeepalive(unittest.TestCase):
         # Replace with mocked out ConnMgr.
         kah._cm = conn_mgr
         self.assertRaises(URLTimeoutError, kah.do_open, req)
-        self.assertRaises(w3afMustStopException, kah.do_open, req)
+        self.assertRaises(ScanMustStopException, kah.do_open, req)
 
         kah._start_transaction.assert_called_once_with(conn, req)
         conn_mgr.get_available_connection.assert_called_once_with(
@@ -142,10 +142,10 @@ class TestKeepalive(unittest.TestCase):
         conn_mgr.free_connection.assert_called_once_with(conn)
 
     def test_single_conn_mgr(self):
-        '''
+        """
         We only want to use different instances of the ConnectionManager for
         HTTP and HTTPS.
-        '''
+        """
         conn_mgr_http = id(HTTPHandler()._cm)
         conn_mgr_https = id(HTTPSHandler(':')._cm)
         
@@ -187,9 +187,9 @@ class test_connection_mgr(unittest.TestCase):
         self.host = Mock()
 
     def test_get_available_conn(self):
-        '''
+        """
         Play with the pool, test, test... and test
-        '''
+        """
         self.cm._host_pool_size = 1  # Only a single connection
         self.assertEquals(0, len(self.cm._hostmap))
         self.assertEquals(0, len(self.cm._used_cons))
@@ -209,7 +209,7 @@ class test_connection_mgr(unittest.TestCase):
         conn = self.cm.get_available_connection(self.host, cf)
         t0 = time.time()
         self.assertRaises(
-            w3afException, self.cm.get_available_connection, self.host, cf)
+            BaseFrameworkException, self.cm.get_available_connection, self.host, cf)
         self.assertTrue(
             time.time() - t0 >= 2.9, "Method returned before expected time")
 

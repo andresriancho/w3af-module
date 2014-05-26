@@ -1,4 +1,4 @@
-'''
+"""
 test_fuzzer.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import unittest
 
 from w3af.core.data.kb.config import Config
@@ -273,13 +273,14 @@ class TestFuzzer(unittest.TestCase):
         self.assertTrue(
             all(m.get_method() == 'PUT' for m in generated_mutants))
 
-        expected_dc_lst = [Form(
-            [('username', ['abc']), ('address', ['Bonsai Street 123'])]),
-            Form([('username', [
-                   'def']), ('address', ['Bonsai Street 123'])]),
-            Form([('username', [
-                   'John8212']), ('address', ['abc'])]),
-            Form([('username', ['John8212']), ('address', ['def'])])]
+        expected_dc_lst = [Form([('username', ['abc']),
+                                 ('address', ['Bonsai Street 123'])]),
+                           Form([('username', ['def']),
+                                 ('address', ['Bonsai Street 123'])]),
+                           Form([('username', ['John8212']),
+                                 ('address', ['abc'])]),
+                           Form([('username', ['John8212']),
+                                 ('address', ['def'])])]
 
         created_dc_lst = [i.get_dc() for i in generated_mutants]
 

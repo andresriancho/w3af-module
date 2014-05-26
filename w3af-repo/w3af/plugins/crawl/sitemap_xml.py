@@ -1,4 +1,4 @@
-'''
+"""
 sitemap_xml.py
 
 Copyright 2006 Andres Riancho
@@ -18,36 +18,36 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import xml.dom.minidom
 
 import w3af.core.controllers.output_manager as om
 
 from w3af.core.controllers.plugins.crawl_plugin import CrawlPlugin
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
-from w3af.core.controllers.exceptions import w3afException, w3afRunOnce
+from w3af.core.controllers.exceptions import BaseFrameworkException, RunOnce
 from w3af.core.controllers.misc.decorators import runonce
 from w3af.core.data.parsers.url import URL
 
 
 class sitemap_xml(CrawlPlugin):
-    '''
+    """
     Analyze the sitemap.xml file and find new URLs
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         CrawlPlugin.__init__(self)
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def crawl(self, fuzzable_request):
-        '''
+        """
         Get the sitemap.xml file and parse it.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                    (among other things) the URL to test.
-        '''
+        """
         base_url = fuzzable_request.get_url().base_url()
         sitemap_url = base_url.url_join('sitemap.xml')
         response = self._uri_opener.GET(sitemap_url, cache=True)
@@ -65,7 +65,7 @@ class sitemap_xml(CrawlPlugin):
             try:
                 dom = xml.dom.minidom.parseString(response.get_body())
             except:
-                raise w3afException('Error while parsing sitemap.xml')
+                raise BaseFrameworkException('Error while parsing sitemap.xml')
             else:
                 raw_url_list = dom.getElementsByTagName("loc")
                 parsed_url_list = []
@@ -84,13 +84,13 @@ class sitemap_xml(CrawlPlugin):
                 self.worker_pool.map(self.http_get_and_parse, parsed_url_list)
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin searches for the sitemap.xml file, and parses it.
 
         The sitemap.xml file is used by the site administrator to give the
         Google crawler more information about the site. By parsing this file,
         the plugin finds new URLs and other useful information.
-        '''
+        """

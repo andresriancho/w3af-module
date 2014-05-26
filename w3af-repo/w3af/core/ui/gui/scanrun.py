@@ -1,4 +1,4 @@
-'''
+"""
 scanrun.py
 
 Copyright 2007 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import gtk
 import gobject
 import urllib2
@@ -36,16 +36,16 @@ from w3af.core.ui.gui.tools.manual_requests import ManualRequests
 
 from w3af.core.data.db.history import HistoryItem
 from w3af.core.data.kb.info import Info
+from w3af.core.controllers.exceptions import DBException
 
 import w3af.core.data.kb.knowledge_base as kb
-import w3af.core.controllers.output_manager as om
 
 RECURSION_LIMIT = sys.getrecursionlimit() - 5
 RECURSION_MSG = "Recursion limit: can't go deeper"
 
 
 class FullKBTree(KBTree):
-    '''A tree showing all the info.
+    """A tree showing all the info.
 
     This also gives a long description of the element when clicked.
 
@@ -53,7 +53,7 @@ class FullKBTree(KBTree):
     :param filter: The filter to show which elements
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, w3af, kbbrowser, ifilter):
         super(FullKBTree, self).__init__(w3af, ifilter,
                                          'Knowledge Base', strict=False)
@@ -63,10 +63,10 @@ class FullKBTree(KBTree):
         self.show()
 
     def _showDesc(self, tv):
-        '''Shows the description at the right
+        """Shows the description at the right
 
         :param tv: the treeview.
-        '''
+        """
         (path, column) = tv.get_cursor()
         if path is None:
             return
@@ -78,69 +78,91 @@ class FullKBTree(KBTree):
         longdesc = instance.get_desc()
         self.kbbrowser.explanation.set_text(longdesc)
 
-        success = False
+        if not instance.get_id():
+            self.clear_request_response_viewer()
+            return
 
-        if instance.get_id():
-            #
-            # We have two different cases:
-            #
-            # 1) The object is related to ONLY ONE request / response
-            # 2) The object is related to MORE THAN ONE request / response
-            #
-            # For 1), we show the classic view, and for 2) we show the classic
-            # view with a "page control"
-            #
-            # Work:
-            #
-            if len(instance.get_id()) == 1:
-                # There is ONLY ONE id related to the object
-                # This is 1)
-                self.kbbrowser.pagesControl.deactivate()
-                self.kbbrowser._pageChange(0)
-                self.kbbrowser.pagesControl.hide()
-                self.kbbrowser.title0.hide()
+        #
+        # We have two different cases:
+        #
+        # 1) The object is related to ONLY ONE request / response
+        # 2) The object is related to MORE THAN ONE request / response
+        #
+        # For 1), we show the classic view, and for 2) we show the classic
+        # view with a "page control"
+        #
+        # Work:
+        #
+        if len(instance.get_id()) == 1:
+            # There is ONLY ONE id related to the object
+            # This is 1)
+            self.kbbrowser.pagesControl.deactivate()
+            self.kbbrowser._pageChange(0)
+            self.kbbrowser.pagesControl.hide()
+            self.kbbrowser.title0.hide()
 
-                historyItem = self._historyItem.read(instance.get_id()[0])
-                if historyItem:
-                    self.kbbrowser.rrV.request.show_object(historyItem.request)
-                    self.kbbrowser.rrV.response.show_object(
-                        historyItem.response)
+            search_id = instance.get_id()[0]
+            try:
+                history_item = self._historyItem.read(search_id)
+            except DBException:
+                msg = _('The HTTP data with id %s is not inside the database.')
+                self._show_message(_('Error'), msg % search_id)
+                self.clear_request_response_viewer()
+                return
 
-                    # Don't forget to highlight if neccesary
-                    severity = instance.get_severity()
-                    for s in instance.get_to_highlight():
-                        self.kbbrowser.rrV.response.highlight(s, severity)
+            # Error handling for .trace file problems
+            # https://github.com/andresriancho/w3af/issues/1174
+            try:
+                # These lines will trigger the code that reads the .trace file
+                # from disk and if they aren't there an exception will rise
+                history_item.request
+                history_item.response
+            except IOError, ioe:
+                self._show_message(_('Error'), str(ioe))
+                return
 
-                    success = True
-                else:
-                    msg = _('Failed to find request/response with id'
-                            '%s in the database.' % instance.get_id())
-                    om.out.error(msg)
-            else:
-                # There are MORE THAN ONE ids related to the object
-                # This is 2)
-                self.kbbrowser.pagesControl.show()
-                self.kbbrowser.title0.show()
+            # Now we know that these two lines will work and we won't trigger
+            # https://github.com/andresriancho/w3af/issues/1174
+            self.kbbrowser.rrV.request.show_object(history_item.request)
+            self.kbbrowser.rrV.response.show_object(history_item.response)
 
-                self.kbbrowser.req_res_ids = instance.get_id()
-                self.kbbrowser.pagesControl.activate(
-                    len(instance.get_id()))
-                self.kbbrowser._pageChange(0)
-                success = True
+            # Don't forget to highlight if necessary
+            severity = instance.get_severity()
+            for s in instance.get_to_highlight():
+                self.kbbrowser.rrV.response.highlight(s, severity)
 
-        if success:
-            self.kbbrowser.rrV.set_sensitive(True)
         else:
-            self.kbbrowser.rrV.request.clear_panes()
-            self.kbbrowser.rrV.response.clear_panes()
-            self.kbbrowser.rrV.set_sensitive(False)
+            # There are MORE THAN ONE ids related to the object
+            # This is 2)
+            self.kbbrowser.pagesControl.show()
+            self.kbbrowser.title0.show()
+
+            self.kbbrowser.req_res_ids = instance.get_id()
+            num_ids = len(instance.get_id())
+            self.kbbrowser.pagesControl.activate(num_ids)
+            self.kbbrowser._pageChange(0)
+
+        self.kbbrowser.rrV.set_sensitive(True)
+
+    def clear_request_response_viewer(self):
+        self.kbbrowser.rrV.request.clear_panes()
+        self.kbbrowser.rrV.response.clear_panes()
+        self.kbbrowser.rrV.set_sensitive(False)
+
+    def _show_message(self, title, msg, gtkLook=gtk.MESSAGE_WARNING):
+        """Show message to user as GTK dialog."""
+        dlg = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtkLook,
+                                gtk.BUTTONS_OK, msg)
+        dlg.set_title(title)
+        dlg.run()
+        dlg.destroy()
 
 
 class KBBrowser(entries.RememberingHPaned):
-    '''Show the Knowledge Base, with the filter and the tree.
+    """Show the Knowledge Base, with the filter and the tree.
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, w3af):
         super(KBBrowser, self).__init__(w3af, "pane-kbbrowser", 250)
 
@@ -234,14 +256,14 @@ class KBBrowser(entries.RememberingHPaned):
         self.show()
 
     def type_filter(self, button, ptype):
-        '''Changes the filter of the KB in the tree.'''
+        """Changes the filter of the KB in the tree."""
         self.filters[ptype] = button.get_active()
         self.kbtree.set_filter(self.filters)
 
     def _pageChange(self, page):
-        '''
+        """
         Handle the page change in the page control.
-        '''
+        """
         # Only do something if I have a list of request and responses
         if self.req_res_ids:
             request_id = self.req_res_ids[page]
@@ -261,10 +283,10 @@ class KBBrowser(entries.RememberingHPaned):
 
 
 class URLsGraph(gtk.VBox):
-    '''Graph the URLs that the system discovers.
+    """Graph the URLs that the system discovers.
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, w3af):
         super(URLsGraph, self).__init__()
         self.w3af = w3af
@@ -375,10 +397,10 @@ User-Agent: w3af.org
 
 
 class URLsTree(gtk.TreeView):
-    '''Show the URLs that the system discovers.
+    """Show the URLs that the system discovers.
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, w3af, grapher):
         self.w3af = w3af
         self.grapher = grapher
@@ -407,7 +429,7 @@ class URLsTree(gtk.TreeView):
         self.show()
 
     def _doubleClick(self, widg, event):
-        '''If double click, expand/collapse the row.'''
+        """If double click, expand/collapse the row."""
         if event.type == gtk.gdk._2BUTTON_PRESS:
             path = self.get_cursor()[0]
             # This "if path" fixed bug #2205544
@@ -419,10 +441,10 @@ class URLsTree(gtk.TreeView):
                     self.expand_row(path, False)
 
     def add_url(self):
-        '''Adds periodically the new URLs to the tree.
+        """Adds periodically the new URLs to the tree.
 
         :return: True to keep being called by gobject, False when it's done.
-        '''
+        """
         try:
             url = self.urls.get_nowait()
         except Queue.Empty:
@@ -463,7 +485,7 @@ class URLsTree(gtk.TreeView):
         return True
 
     def _insertNodes(self, parent, parts, holder, rec_cntr):
-        '''Insert a new node in the tree.
+        """Insert a new node in the tree.
 
         It's recursive: it walks the path of nodes, being each node a
         part of the URL, checking every time if needs to create a new
@@ -475,7 +497,7 @@ class URLsTree(gtk.TreeView):
         :param rec_cntr: the recursion counter
 
         :return: The new or modified holder
-        '''
+        """
         if not parts:
             return {}
         node = parts[0]
@@ -499,11 +521,11 @@ class URLsTree(gtk.TreeView):
         return holder
 
     def popup_menu(self, tv, event):
-        '''Shows a menu when you right click on a URL in the treeview.
+        """Shows a menu when you right click on a URL in the treeview.
 
         :param tv: the treeview.
         :param event: The GTK event
-        '''
+        """
         if event.button != 3:
             return
 
@@ -544,7 +566,7 @@ class URLsTree(gtk.TreeView):
         gm.popup(None, None, None, event.button, event.time)
 
     def _openBrowser(self, widg, text):
-        '''Opens the text with an external browser.'''
+        """Opens the text with an external browser."""
         webbrowser.open_new_tab(text)
 
     def _send_request(self, widg, text, func):
@@ -552,10 +574,10 @@ class URLsTree(gtk.TreeView):
 
 
 class ScanRunBody(gtk.Notebook):
-    '''The whole body of scan run.
+    """The whole body of scan run.
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, w3af):
         super(ScanRunBody, self).__init__()
         self.w3af = w3af
@@ -592,5 +614,5 @@ class ScanRunBody(gtk.Notebook):
         self.show()
 
     def changed_page(self, notebook, page, page_num):
-        '''Changed the page in the Notebook.'''
+        """Changed the page in the Notebook."""
         self.w3af.helpChapters["scanrun"] = self.helpChapter[page_num]

@@ -1,4 +1,4 @@
-'''
+"""
 sed.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import re
 
 import w3af.core.controllers.output_manager as om
@@ -29,15 +29,15 @@ from w3af.core.data.request.factory import create_fuzzable_request_from_parts
 from w3af.core.data.dc.headers import Headers
 
 from w3af.core.controllers.plugins.mangle_plugin import ManglePlugin
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class sed(ManglePlugin):
-    '''
+    """
     This plugin is a "stream editor" for http requests and responses.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
 
     def __init__(self):
         ManglePlugin.__init__(self)
@@ -49,12 +49,12 @@ class sed(ManglePlugin):
         self._expressions = ''
 
     def mangle_request(self, request):
-        '''
+        """
         This method mangles the request.
 
         :param request: This is the request to mangle.
         :return: A mangled version of the request.
-        '''
+        """
         data = request.get_data()
         for regex, string in self._manglers['q']['b']:
             data = regex.sub(string, data)
@@ -73,12 +73,12 @@ class sed(ManglePlugin):
                                                   )
 
     def mangle_response(self, response):
-        '''
+        """
         This method mangles the response.
 
         :param response: This is the response to mangle.
         :return: A mangled version of the response.
-        '''
+        """
         body = response.get_body()
 
         for regex, string in self._manglers['s']['b']:
@@ -106,7 +106,7 @@ class sed(ManglePlugin):
         return response
 
     def set_options(self, option_list):
-        '''
+        """
         Sets the Options given on the OptionList to self. The options are the
         result of a user entering some data on a window that was constructed
         using the XML Options that was retrieved from the plugin using
@@ -115,7 +115,7 @@ class sed(ManglePlugin):
         This method MUST be implemented on every plugin.
 
         :return: No value is returned.
-        '''
+        """
         self._user_option_fix_content_len = option_list[
             'fix_content_len'].get_value()
 
@@ -124,7 +124,7 @@ class sed(ManglePlugin):
                                        self._expressions)
 
         if len(self._expressions) == 0 and len(option_list['expressions'].get_value()) != 0:
-            raise w3afException('The user specified expression is invalid.')
+            raise BaseFrameworkException('The user specified expression is invalid.')
 
         for exp in self._expressions:
             req_res, body_header, regex_str, target_str = exp
@@ -133,26 +133,26 @@ class sed(ManglePlugin):
                 msg = 'The first letter of the sed expression should be "q"'\
                       ' for indicating request or "s" for response, got "%s"'\
                       ' instead.'
-                raise w3afException(msg % req_res)
+                raise BaseFrameworkException(msg % req_res)
 
             if body_header not in ('b', 'h'):
                 msg = 'The second letter of the expression should be "b"'\
                       ' for body or "h" for header, got "%s" instead.'
-                raise w3afException(msg % body_header)
+                raise BaseFrameworkException(msg % body_header)
 
             try:
                 regex = re.compile(regex_str)
             except re.error, re_err:
                 msg = 'Regular expression compilation error at "%s", the'\
                       ' original exception was "%s".'
-                raise w3afException(msg % (regex_str, re_err))
+                raise BaseFrameworkException(msg % (regex_str, re_err))
 
             self._manglers[req_res][body_header].add((regex, target_str))
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
         
         d = 'Stream edition expressions'
@@ -181,10 +181,10 @@ class sed(ManglePlugin):
         return ol
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin is a stream editor for web requests and responses.
 
         Two configurable parameters exist:
@@ -204,4 +204,4 @@ class sed(ManglePlugin):
             form or Form and replace it with form.
         
         Multiple expressions can be specified separated by commas.
-        '''
+        """

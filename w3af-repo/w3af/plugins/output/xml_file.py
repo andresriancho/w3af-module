@@ -1,4 +1,4 @@
-'''
+"""
 xml_file.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import base64
 import os
 import time
@@ -31,8 +31,8 @@ import w3af.core.data.kb.knowledge_base as kb
 
 from w3af.core.controllers.plugins.output_plugin import OutputPlugin
 from w3af.core.controllers.misc import get_w3af_version
+from w3af.core.controllers.exceptions import BaseFrameworkException, DBException
 from w3af.core.data.misc.encoding import smart_str
-from w3af.core.controllers.exceptions import w3afException
 from w3af.core.data.db.history import HistoryItem
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_types import OUTPUT_FILE
@@ -49,12 +49,13 @@ NON_BIN = ('atom+xml', 'ecmascript', 'EDI-X12', 'EDIFACT', 'json',
            'javascript', 'rss+xml', 'soap+xml', 'font-woff',
            'xhtml+xml', 'xml-dtd', 'xop+xml')
 
+
 class xml_file(OutputPlugin):
-    '''
+    """
     Print all messages to a xml file.
 
     :author: Kevin Denver ( muffysw@hotmail.com )
-    '''
+    """
     def __init__(self):
         OutputPlugin.__init__(self)
 
@@ -95,22 +96,22 @@ class xml_file(OutputPlugin):
             self._file = open(self._file_name, "w")
         except IOError, io:
             msg = 'Can\'t open report file "%s" for writing, error: %s.'
-            raise w3afException(msg % (os.path.abspath(self._file_name),
+            raise BaseFrameworkException(msg % (os.path.abspath(self._file_name),
                                        io.strerror))
         except Exception, e:
             msg = 'Can\'t open report file "%s" for writing, error: %s.'
-            raise w3afException(msg % (os.path.abspath(self._file_name), e))
+            raise BaseFrameworkException(msg % (os.path.abspath(self._file_name), e))
 
     def do_nothing(self, *args, **kwds):
         pass
     debug = information = vulnerability = console = log_http = do_nothing
 
     def error(self, message, new_line=True):
-        '''
+        """
         This method is called from the output object. The output object was called
         from a plugin or from the framework. This method should take an action
         for error messages.
-        '''
+        """
         messageNode = self._xmldoc.createElement("error")
         messageNode.setAttribute("caller", str(self.get_caller()))
         description = self._xmldoc.createTextNode(message)
@@ -119,7 +120,7 @@ class xml_file(OutputPlugin):
         self._errorXML.append(messageNode)
 
     def set_options(self, option_list):
-        '''
+        """
         Sets the Options given on the OptionList to self. The options are the
         result of a user entering some data on a window that was constructed
         using the XML Options that was retrieved from the plugin using
@@ -128,13 +129,13 @@ class xml_file(OutputPlugin):
         This method MUST be implemented on every plugin.
 
         :return: No value is returned.
-        '''
+        """
         self._file_name = option_list['output_file'].get_value()
 
     def get_options(self):
-        '''
+        """
         :return: A list of option objects for this plugin.
-        '''
+        """
         ol = OptionList()
 
         d = 'File name where this plugin will write to'
@@ -144,10 +145,10 @@ class xml_file(OutputPlugin):
         return ol
 
     def _buildPluginScanInfo(self, groupName, pluginList, optionsDict):
-        '''
+        """
         This method builds the xml structure for the plugins
         and their configuration
-        '''
+        """
         node = self._xmldoc.createElement(str(groupName))
         for plugin_name in pluginList:
             pluginNode = self._xmldoc.createElement("plugin")
@@ -165,7 +166,7 @@ class xml_file(OutputPlugin):
         self._scanInfo.appendChild(node)
 
     def log_enabled_plugins(self, pluginsDict, optionsDict):
-        '''
+        """
         This method is called from the output manager object. This method should
         take an action for the enabled plugins and their configuration. Usually,
         write the info to a file or print it somewhere.
@@ -173,7 +174,7 @@ class xml_file(OutputPlugin):
         :param pluginsDict: A dict with all the plugin types and the enabled
                                 plugins for that type of plugin.
         :param optionsDict: A dict with the options for every plugin.
-        '''
+        """
         # Add the user configured targets to scaninfo
         strTargets = ''
         for url in cf.cf.get('targets'):
@@ -231,9 +232,9 @@ class xml_file(OutputPlugin):
         return headers, body
     
     def handle_body(self, parentNode, headers, body):
-        '''
+        """
         Create the XML tags that hold the http request or response body
-        '''
+        """
         actionBodyNode = self._xmldoc.createElement("body")
         actionBodyNode.setAttribute('content-encoding', 'text')
         
@@ -280,9 +281,9 @@ class xml_file(OutputPlugin):
         parentNode.appendChild(actionBodyNode)
 
     def end(self):
-        '''
+        """
         This method is called when the scan has finished.
-        '''
+        """
         # TODO: Aug 31 2011, Is there improvement for this? We are
         # removing null characters from the xml doc. Would this be a
         # significant loss of data for any scenario?
@@ -310,20 +311,26 @@ class xml_file(OutputPlugin):
                 transaction_set = self._xmldoc.createElement(
                     'http-transactions')
                 messageNode.appendChild(transaction_set)
+
                 for requestid in i.get_id():
-                    details = self._history.read(requestid)
-                    # Wrap the entire http transaction in a single block
-                    actionset = self._xmldoc.createElement("http-transaction")
-                    actionset.setAttribute("id", str(requestid))
-                    transaction_set.appendChild(actionset)
+                    try:
+                        details = self._history.read(requestid)
+                    except DBException:
+                        msg = 'Failed to retrieve request with id %s from DB.'
+                        print(msg % requestid)
+                    else:
+                        # Wrap the entire http transaction in a single block
+                        actionset = self._xmldoc.createElement("http-transaction")
+                        actionset.setAttribute("id", str(requestid))
+                        transaction_set.appendChild(actionset)
 
-                    requestNode = self._xmldoc.createElement("httprequest")
-                    self.report_http_action(requestNode, details.request)
-                    actionset.appendChild(requestNode)
+                        requestNode = self._xmldoc.createElement("httprequest")
+                        self.report_http_action(requestNode, details.request)
+                        actionset.appendChild(requestNode)
 
-                    responseNode = self._xmldoc.createElement("httpresponse")
-                    self.report_http_action(responseNode, details.response)
-                    actionset.appendChild(responseNode)
+                        responseNode = self._xmldoc.createElement("httpresponse")
+                        self.report_http_action(responseNode, details.response)
+                        actionset.appendChild(responseNode)
 
             self._topElement.appendChild(messageNode)
 
@@ -347,20 +354,25 @@ class xml_file(OutputPlugin):
                     'http-transactions')
                 messageNode.appendChild(transaction_set)
                 for requestid in i.get_id():
-                    details = self._history.read(requestid)
-                    # Wrap the entire http transaction in a single block
-                    actionset = self._xmldoc.createElement("http-transaction")
-                    actionset.setAttribute("id", str(requestid))
-                    transaction_set.appendChild(actionset)
-                    # create a node for the request content
-                    requestNode = self._xmldoc.createElement("httprequest")
-                    self.report_http_action(requestNode, details.request)
-                    actionset.appendChild(requestNode)
-                    # create a node for the response content
-                    responseNode = self._xmldoc.createElement("httpresponse")
-                    responseNode.setAttribute("id", str(requestid))
-                    self.report_http_action(responseNode, details.response)
-                    actionset.appendChild(responseNode)
+                    try:
+                        details = self._history.read(requestid)
+                    except DBException:
+                        msg = 'Failed to retrieve request with id %s from DB.'
+                        print(msg % requestid)
+                    else:
+                        # Wrap the entire http transaction in a single block
+                        actionset = self._xmldoc.createElement("http-transaction")
+                        actionset.setAttribute("id", str(requestid))
+                        transaction_set.appendChild(actionset)
+                        # create a node for the request content
+                        requestNode = self._xmldoc.createElement("httprequest")
+                        self.report_http_action(requestNode, details.request)
+                        actionset.appendChild(requestNode)
+                        # create a node for the response content
+                        responseNode = self._xmldoc.createElement("httpresponse")
+                        responseNode.setAttribute("id", str(requestid))
+                        self.report_http_action(responseNode, details.response)
+                        actionset.appendChild(responseNode)
 
             self._topElement.appendChild(messageNode)
 
@@ -380,12 +392,12 @@ class xml_file(OutputPlugin):
             self._file.close()
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin writes the framework messages to an XML report file.
 
         One configurable parameter exists:
             - output_file
-        '''
+        """

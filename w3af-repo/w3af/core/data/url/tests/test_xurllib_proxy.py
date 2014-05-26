@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 test_xurllib.py
 
 Copyright 2011 Andres Riancho
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 
 from nose.plugins.attrib import attr
@@ -73,7 +73,6 @@ class TestExtendedUrllibProxy(unittest.TestCase):
         http_response = self.uri_opener.GET(url, cache=False)
         self.assertIn(self.MOTH_MESSAGE, http_response.body)
 
-    @attr('ci_fails')
     def test_https_via_proxy(self):
         TODO = 'Skip this test because of a strange bug with the extended'\
                ' url library and w3af\'s local proxy daemon. More info here:'\

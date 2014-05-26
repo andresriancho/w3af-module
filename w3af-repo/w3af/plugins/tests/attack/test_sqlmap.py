@@ -1,4 +1,4 @@
-'''
+"""
 test_sqlmap.py
 
 Copyright 2012 Andres Riancho
@@ -17,21 +17,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
-from nose.plugins.attrib import attr
-
+"""
+from w3af.core.controllers.ci.sqlmap_testenv import get_sqlmap_testenv_http
 from w3af.core.controllers.ci.moth import get_moth_http
 
 from w3af.plugins.tests.helper import PluginConfig, ReadExploitTest
 from w3af.core.data.kb.vuln_templates.sql_injection_template import SQLiTemplate
 
 
-@attr('fails')
 class TestSQLMapShell(ReadExploitTest):
 
-    SQLI = get_moth_http('/audit/sql_injection/where_string_single_qs.py?uname=pablo')
-    
-    BSQLI = 'http://moth/w3af/audit/blind_sql_injection/forms/'
+    SQLI = get_sqlmap_testenv_http('/mysql/get_int.php?id=2')
+    BSQLI = get_sqlmap_testenv_http('/mysql/get_int_noerror.php?id=3')
 
     _run_configs = {
         'sqli': {
@@ -45,11 +42,6 @@ class TestSQLMapShell(ReadExploitTest):
             'target': BSQLI,
             'plugins': {
                 'audit': (PluginConfig('blind_sqli'),),
-                'crawl': (
-                    PluginConfig(
-                        'web_spider',
-                        ('only_forward', True, PluginConfig.BOOL)),
-                )
             }
         }
         
@@ -69,7 +61,7 @@ class TestSQLMapShell(ReadExploitTest):
 
         # Verify the specifics about the vulnerabilities
         EXPECTED = [
-            ('where_string_single_qs.py', 'uname'),
+            ('get_int.php', 'id'),
         ]
 
         found_vulns = [(v.get_url().get_file_name(),
@@ -95,8 +87,8 @@ class TestSQLMapShell(ReadExploitTest):
         vuln = vulns[0]
         
         self.assertEquals("Blind SQL injection vulnerability", vuln.get_name())
-        self.assertEquals('user', vuln.get_mutant().get_var())
-        self.assertEquals('data_receptor.php', vuln.get_url().get_file_name())
+        self.assertEquals('id', vuln.get_mutant().get_var())
+        self.assertEquals('get_int_noerror.php', vuln.get_url().get_file_name())
         
         vuln_to_exploit_id = vuln.get_id()
         self._exploit_vuln(vuln_to_exploit_id, 'sqlmap')
@@ -105,10 +97,10 @@ class TestSQLMapShell(ReadExploitTest):
         sqlit = SQLiTemplate()
         
         options = sqlit.get_options()
-        path = '/audit/sql_injection/where_string_single_qs.py'
-        options['url'].set_value(get_moth_http(path))
-        options['data'].set_value('uname=andres')
-        options['vulnerable_parameter'].set_value('name')
+        path = '/mysql/get_int.php'
+        options['url'].set_value(get_sqlmap_testenv_http(path))
+        options['data'].set_value('id=2')
+        options['vulnerable_parameter'].set_value('id')
         sqlit.set_options(options)
 
         sqlit.store_in_kb()
@@ -116,3 +108,35 @@ class TestSQLMapShell(ReadExploitTest):
         vuln_to_exploit_id = vuln.get_id()
         
         self._exploit_vuln(vuln_to_exploit_id, 'sqlmap')
+
+    def test_found_exploit_blind_sqli_form_GET(self):
+        """
+        Reproduce bug https://github.com/andresriancho/w3af/issues/262
+        "it appears that you have provided tainted parameter values"
+        """
+        target = get_moth_http('/audit/blind_sqli/blind_where_integer_form_get.py')
+        cfg = self._run_configs['blind_sqli']
+        self._scan(target, cfg['plugins'])
+
+        # Assert the general results
+        vulns = self.kb.get('blind_sqli', 'blind_sqli')
+
+        self.assertEquals(1, len(vulns))
+        vuln = vulns[0]
+
+        self.assertEquals("Blind SQL injection vulnerability", vuln.get_name())
+        self.assertEquals('q', vuln.get_mutant().get_var())
+        self.assertEquals('blind_where_integer_form_get.py',
+                          vuln.get_url().get_file_name())
+
+        vuln_to_exploit_id = vuln.get_id()
+
+        #
+        #   Execute the exploit.
+        #
+        plugin = self.w3afcore.plugins.get_plugin_inst('attack', 'sqlmap')
+
+        #   Assert success
+        self.assertTrue(plugin.can_exploit(vuln_to_exploit_id))
+        exploit_result = plugin.exploit(vuln_to_exploit_id)
+        self.assertEqual(len(exploit_result), 1, exploit_result)

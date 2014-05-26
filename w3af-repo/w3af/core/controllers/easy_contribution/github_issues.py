@@ -1,4 +1,4 @@
-'''
+"""
 github_issues.py
 
 Copyright 2013 Andres Riancho
@@ -18,11 +18,12 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import string
 import hashlib
 import time
 import ssl
+import socket
 
 from github import Github
 from github import GithubException
@@ -31,20 +32,20 @@ from w3af.core.controllers.exception_handling.helpers import get_versions
 
 
 TICKET_TEMPLATE = string.Template(
-'''# User description
+"""# User description
 $user_desc
-# Version Information
+## Version Information
 ```
 $w3af_v
 ```
-# Traceback
-```
+## Traceback
+```pytb
 $t_back
 ```
-# Enabled Plugins
-```
+## Enabled Plugins
+```python
 $plugins
-```''')
+```""")
 
 TICKET_URL_FMT = 'https://github.com/andresriancho/w3af/issues/%s'
 
@@ -86,11 +87,15 @@ class GithubIssues(object):
                 return False
             except GithubException:
                 return False
+            except socket.gaierror:
+                return False
+            except socket.timeout:
+                return False
         
         return True
         
-    def report_bug(self, summary, userdesc, tback='',
-                   fname=None, plugins='', autogen=True, email=None):
+    def report_bug(self, summary, userdesc, tback='', fname=None, plugins='',
+                   autogen=True, email=None):
         if self.gh is None:
             raise Exception('Please login before reporting a bug.')
         
@@ -110,10 +115,10 @@ class GithubIssues(object):
 
     def _build_summary_and_desc(self, summary, desc, tback,
                                 fname, plugins, autogen, email):
-        '''
+        """
         Build the formatted summary and description that will be
         part of the reported bug.
-        '''
+        """
         #
         #    Define which summary to use
         #
@@ -140,7 +145,8 @@ class GithubIssues(object):
         #    email provided by the user or not).
         #
         if email is not None:
-            email_fmt = '\n\nThe user provided the following email address for contact: %s'
+            email_fmt = '\n\nThe user provided the following email address for'\
+                        'contact: %s'
             desc += email_fmt % email
 
         #

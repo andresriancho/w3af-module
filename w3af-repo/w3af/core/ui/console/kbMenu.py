@@ -1,4 +1,4 @@
-'''
+"""
 menu.py
 
 Copyright 2008 Andres Riancho
@@ -18,11 +18,11 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.controllers.output_manager as om
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.kb.vuln_templates.utils import (get_template_names,
                                                get_template_by_name)
 from w3af.core.ui.console.menu import menu
@@ -32,11 +32,11 @@ from w3af.core.ui.console.config import ConfigMenu
 
 class kbMenu(menu):
 
-    '''
+    """
     This menu is used to display information from the knowledge base
     and (in the nearest future) to manipulate it.
     :author: Alexander Berezhnoy (alexander.berezhnoy |at| gmail.com)
-    '''
+    """
     def __init__(self, name, console, w3afcore, parent=None, **other):
         menu.__init__(self, name, console, w3afcore, parent)
         self._load_help('kb')
@@ -124,7 +124,7 @@ class StoreOnBackConfigMenu(ConfigMenu):
     def _cmd_back(self, tokens):
         try:
             self._cmd_save(tokens)
-        except (ValueError, w3afException) as e:
+        except (ValueError, BaseFrameworkException) as e:
             om.out.error(str(e))
             return self._console.back
         

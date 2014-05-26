@@ -1,4 +1,4 @@
-'''
+"""
 test_target.py
 
 Copyright 2012 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 import os
 
@@ -25,7 +25,7 @@ from nose.plugins.attrib import attr
 
 import w3af.core.data.kb.config as cf
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.core_helpers.target import w3af_core_target
 from w3af.core.data.parsers.url import URL as URL_KLASS
 from w3af.core.data.options.option_types import (
@@ -59,7 +59,7 @@ class TestTarget(unittest.TestCase):
     def test_verify_url(self):
         ctarget = w3af_core_target()
 
-        self.assertRaises(w3afException, ctarget._verify_url,
+        self.assertRaises(BaseFrameworkException, ctarget._verify_url,
                           URL_KLASS('ftp://www.google.com/'))
         
         self.assertTrue(ctarget._verify_url(URL_KLASS('http://www.google.com/')))

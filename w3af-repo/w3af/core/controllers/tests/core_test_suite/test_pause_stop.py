@@ -1,4 +1,4 @@
-'''
+"""
 test_pause_stop.py
 
 Copyright 2011 Andres Riancho
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import unittest
 import time
 import pprint
@@ -38,13 +38,11 @@ class CountTestMixin(unittest.TestCase):
     PLUGIN = 'w3af.core.controllers.tests.count'
     
     def setUp(self):
-        '''
+        """
         This is a rather complex setUp since I need to create an instance of
         the count.py plugin in memory, without copying it to any plugins
         directory since that would generate issues with other tests.
-
-        In the tearDown method, I'll remove the file.
-        '''
+        """
         self.w3afcore = w3afCore()
         
         target_opts = create_target_option_list(URL(get_moth_http()))
@@ -54,8 +52,8 @@ class CountTestMixin(unittest.TestCase):
         plugin_inst.set_url_opener(self.w3afcore.uri_opener)
         plugin_inst.set_worker_pool(self.w3afcore.worker_pool)
 
-        self.w3afcore.plugins.plugins['crawl'] = [plugin_inst,]
-        self.w3afcore.plugins._plugins_names_dict['crawl'] = ['count',]
+        self.w3afcore.plugins.plugins['crawl'] = [plugin_inst]
+        self.w3afcore.plugins._plugins_names_dict['crawl'] = ['count']
         self.count_plugin = plugin_inst
         
         # Verify env and start the scan
@@ -65,15 +63,16 @@ class CountTestMixin(unittest.TestCase):
     def tearDown(self):
         self.w3afcore.quit()
 
+
 class TestW3afCorePause(CountTestMixin):
-                
+
     @attr('ci_fails')
     def test_pause_unpause(self):
-        '''
+        """
         Verify that the pause method actually works. In this case, working
         means that the process doesn't send any more HTTP requests, fact
         that is verified with the "fake" count plugin.
-        '''        
+        """        
         core_start = Process(target=self.w3afcore.start, name='TestRunner')
         core_start.daemon = True
         core_start.start()
@@ -99,14 +98,18 @@ class TestW3afCorePause(CountTestMixin):
         core_start.join()
         
         self.assertEqual(self.count_plugin.count, self.count_plugin.loops)
-    
+
     @attr('ci_fails')
     def test_pause_stop(self):
-        '''
+        """
         Verify that the pause method actually works. In this case, working
         means that the process doesn't send any more HTTP requests after we,
         pause and that stop works when paused.
-        '''
+
+        This test seems to be failing @ CircleCI because of a test dependency
+        issue. If run alone in your workstation it will PASS, but if run at
+        CircleCI the count plugin doesn't seem to start.
+        """
         core_start = Process(target=self.w3afcore.start, name='TestRunner')
         core_start.daemon = True
         core_start.start()
@@ -136,11 +139,15 @@ class TestW3afCorePause(CountTestMixin):
 
     @attr('ci_fails')
     def test_stop(self):
-        '''
+        """
         Verify that the stop method actually works. In this case, working
         means that the process doesn't send any more HTTP requests after we
         stop().
-        '''
+
+        This test seems to be failing @ CircleCI because of a test dependency
+        issue. If run alone in your workstation it will PASS, but if run at
+        CircleCI the count plugin doesn't seem to start.
+        """
         core_start = Process(target=self.w3afcore.start, name='TestRunner')
         core_start.daemon = True
         core_start.start()
@@ -162,11 +169,13 @@ class TestW3afCorePause(CountTestMixin):
         #alive_threads = threading.enumerate()
         #self.assertEqual(len(alive_threads), 0, nice_repr(alive_threads))
 
+
 class StopCtrlCTest(unittest.TestCase):
+
     def test_stop_by_keyboardinterrupt(self):
-        '''
+        """
         Verify that the Ctrl+C stops the scan.
-        '''
+        """
         # pylint: disable=E0202
         w3afcore = w3afCore()
         
@@ -182,6 +191,7 @@ class StopCtrlCTest(unittest.TestCase):
         w3afcore.plugins.init_plugins()
         w3afcore.verify_environment()
         w3afcore.start()
+
 
 def nice_repr(alive_threads):
     repr_alive = [repr(x) for x in alive_threads][:20]

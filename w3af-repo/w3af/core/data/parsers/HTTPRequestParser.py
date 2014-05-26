@@ -1,4 +1,4 @@
-'''
+"""
 HTTPRequestParser.py
 
 Copyright 2008 Andres Riancho
@@ -18,43 +18,43 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import urlparse
 
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.request.factory import create_fuzzable_request_from_parts
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 def check_version_syntax(version):
-    '''
+    """
     :return: True if the syntax of the version section of HTTP is valid; else
              raise an exception.
-    '''
+    """
     supportedVersions = ['1.0', '1.1']
     splittedVersion = version.split('/')
 
     if len(splittedVersion) != 2:
         msg = 'The HTTP request has an invalid version token: "' + \
             version + '"'
-        raise w3afException(msg)
+        raise BaseFrameworkException(msg)
     elif len(splittedVersion) == 2:
         if splittedVersion[0].lower() != 'http':
             msg = 'The HTTP request has an invalid HTTP token in the version specification: "'
             msg += version + '"'
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
         if splittedVersion[1] not in supportedVersions:
-            raise w3afException(
+            raise BaseFrameworkException(
                 'HTTP request version "' + version + '" is unsupported')
     return True
 
 
 def check_uri_syntax(uri, host=None):
-    '''
+    """
     :return: True if the syntax of the URI section of HTTP is valid; else
              raise an exception.
-    '''
+    """
     supported_schemes = ['http', 'https']
     scheme, domain, path, params, qs, fragment = urlparse.urlparse(uri)
     scheme = scheme.lower()
@@ -69,14 +69,14 @@ def check_uri_syntax(uri, host=None):
     if scheme not in supported_schemes or not domain:
         msg = 'You have to specify the complete URI, including the protocol'
         msg += ' and the host. Invalid URI: %s.'
-        raise w3afException(msg % uri)
+        raise BaseFrameworkException(msg % uri)
 
     res = urlparse.urlunparse((scheme, domain, path, params, qs, fragment))
     return res
 
 
 def HTTPRequestParser(head, postdata):
-    '''
+    """
     This function parses HTTP Requests from a string to a FuzzableRequest.
 
     :param head: The head of the request.
@@ -86,25 +86,26 @@ def HTTPRequestParser(head, postdata):
 
     :author: Andres Riancho (andres.riancho@gmail.com)
 
-    '''
+    """
     # Parse the request head, the strip() helps us deal with the \r (if any)
     splitted_head = head.split('\n')
     splitted_head = [h.strip() for h in splitted_head if h]
 
     if not splitted_head:
         msg = 'The HTTP request is invalid.'
-        raise w3afException(msg)
+        raise BaseFrameworkException(msg)
 
     # Get method, uri, version
     method_uri_version = splitted_head[0]
     first_line = method_uri_version.split(' ')
     if len(first_line) == 3:
-        # Ok, we have something like "GET /foo HTTP/1.0". This is the best case for us!
+        # Ok, we have something like "GET /foo HTTP/1.0". This is the best case
+        # for us!
         method, uri, version = first_line
     elif len(first_line) < 3:
         msg = 'The HTTP request has an invalid <method> <uri> <version> token: "'
         msg += method_uri_version + '".'
-        raise w3afException(msg)
+        raise BaseFrameworkException(msg)
     elif len(first_line) > 3:
         # GET /hello world.html HTTP/1.0
         # Mostly because we are permissive... we are going to try to parse
@@ -123,7 +124,7 @@ def HTTPRequestParser(head, postdata):
         one_splitted_header = header.split(':', 1)
         if len(one_splitted_header) == 1:
             msg = 'The HTTP request has an invalid header: "%s".'
-            raise w3afException(msg % header)
+            raise BaseFrameworkException(msg % header)
 
         header_name = one_splitted_header[0].strip()
         header_value = one_splitted_header[1].strip()
@@ -137,7 +138,7 @@ def HTTPRequestParser(head, postdata):
     try:
         uri = URL(check_uri_syntax(uri, host))
     except ValueError, ve:
-        raise w3afException(str(ve))
+        raise BaseFrameworkException(str(ve))
 
     return create_fuzzable_request_from_parts(uri, method, postdata,
                                               headers_inst)

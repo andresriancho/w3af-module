@@ -1,4 +1,4 @@
-'''
+"""
 linux.py
 
 Copyright 2013 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import subprocess
 
 SYSTEM_NAME = 'Debian'
@@ -31,14 +31,18 @@ SYSTEM_PACKAGES = {
                                'build-essential', 'libsqlite3-dev'],
                    'SSL_DEV': ['libssl-dev',],
                    'GIT': ['git'],
-                   'XML': ['libxml2-dev', 'libxslt1-dev']
+                   'XML': ['libxml2-dev', 'libxslt1-dev'],
+                   'YAML': ['libyaml-dev']
                   }
 PIP_CMD = 'pip'
 
 
 def os_package_is_installed(package_name):
     not_installed = 'is not installed and no info is available'
+
+    # The hold string was added after a failed build of w3af-module
     installed = 'Status: install ok installed'
+    hold = 'Status: hold ok installed'
     
     try:
         p = subprocess.Popen(['dpkg', '-s', package_name], stdout=subprocess.PIPE,
@@ -47,11 +51,11 @@ def os_package_is_installed(package_name):
         # We're not on a debian based system
         return None
     else:
-        dpkg_output = p.stdout.read()
+        dpkg_output, _ = p.communicate()
 
         if not_installed in dpkg_output:
             return False
-        elif installed in dpkg_output:
+        elif installed in dpkg_output or hold in dpkg_output:
             return True
         else:
             return None

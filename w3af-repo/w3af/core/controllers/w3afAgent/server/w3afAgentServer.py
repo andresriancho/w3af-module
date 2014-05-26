@@ -1,4 +1,4 @@
-'''
+"""
 w3afAgentServer.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import sys
 import os
 import socket
@@ -28,16 +28,16 @@ from multiprocessing.dummy import Process
 
 import w3af.core.controllers.output_manager as om
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class ConnectionManager(Process):
-    '''
+    """
     This is a service that listens on some port and waits for the w3afAgentClient
     to connect. It keeps the connections alive so they can be used by a TCPRelay
     object in order to relay the data between the w3afAgentServer and the
     w3afAgentClient.
-    '''
+    """
     def __init__(self, ip_address, port):
         Process.__init__(self)
         self.daemon = True
@@ -67,11 +67,11 @@ class ConnectionManager(Process):
         om.out.debug('Stoped connection manager.')
 
     def run(self):
-        '''
+        """
         Thread entry point.
 
         :return: None
-        '''
+        """
 
         #    Start listening
         try:
@@ -83,7 +83,7 @@ class ConnectionManager(Process):
             msg = '[w3afAgentServer] Failed to bind to %s:%s' % (
                 self._ip_address, self._port)
             msg += '. Error: "%s".' % e
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
 
         # loop !
         while self._keep_running:
@@ -103,9 +103,9 @@ class ConnectionManager(Process):
                     om.out.console('w3afAgent service is up and running.')
 
     def is_working(self):
-        '''
+        """
         :return: Did the remote agent connected to me ?
-        '''
+        """
         return self._reportedConnection
 
     def get_connection(self):
@@ -119,7 +119,7 @@ class ConnectionManager(Process):
             self._cmLock.release()
             return res
         else:
-            raise w3afException(
+            raise BaseFrameworkException(
                 '[ConnectionManager] No available connections.')
 
 
@@ -181,7 +181,7 @@ class TCPRelay(Process):
         try:
             self.sock.bind((self._ip_address, self._port))
         except:
-            raise w3afException('Port (' + self._ip_address +
+            raise BaseFrameworkException('Port (' + self._ip_address +
                                 ':' + str(self._port) + ') already in use.')
         else:
             om.out.debug('[TCPRelay] Bound to ' +
@@ -249,20 +249,20 @@ class w3afAgentServer(Process):
         self._error = ''
 
     def run(self):
-        '''
+        """
         Entry point for the thread.
-        '''
+        """
         try:
             self._cm = ConnectionManager(self._ip_address, self._listen_port)
             self._cm.start()
-        except w3afException, w3:
+        except BaseFrameworkException, w3:
             self._error = 'Failed to start connection manager inside w3afAgentServer, exception: ' + str(w3)
         else:
             try:
                 self._TCPRelay = TCPRelay(
                     self._ip_address, self._socks_port, self._cm)
                 self._TCPRelay.start()
-            except w3afException, w3:
+            except BaseFrameworkException, w3:
                 self._error = 'Failed to start TCPRelay inside w3afAgentServer, exception: "%s"' % w3
                 self._cm.stop()
             else:

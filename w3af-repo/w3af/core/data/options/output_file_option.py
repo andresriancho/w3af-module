@@ -1,4 +1,4 @@
-'''
+"""
 file_option.py
 
 Copyright 2008 Andres Riancho
@@ -18,10 +18,10 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.options.baseoption import BaseOption
 from w3af.core.data.options.option_types import OUTPUT_FILE
 
@@ -31,13 +31,13 @@ class OutputFileOption(BaseOption):
     _type = OUTPUT_FILE
 
     def set_value(self, value):
-        '''
+        """
         :param value: The value parameter is set by the user interface, which
         for example sends 'True' or 'a,b,c'
 
         Based on the value parameter and the option type, I have to create a nice
         looking object like True or ['a','b','c'].
-        '''
+        """
         self._value = self.validate(value)
 
     def validate(self, value):
@@ -47,12 +47,12 @@ class OutputFileOption(BaseOption):
         if not os.path.isdir(directory):
             msg = 'Invalid file option value "%s", the directory does not'\
                   ' exist.'
-            raise w3afException(msg % value)
+            raise BaseFrameworkException(msg % value)
 
         if not os.access(directory, os.W_OK):
             msg = 'Invalid file option value "%s", the user doesn\'t have' \
                   ' enough permissions to write to the specified directory.'
-            raise w3afException(msg % value)
+            raise BaseFrameworkException(msg % value)
 
         # Please note the following:
         #     >>> os.path.abspath(os.path.dirname(''))
@@ -61,6 +61,6 @@ class OutputFileOption(BaseOption):
         # This is why we need this check:
         if value == '':
             msg = 'Invalid file option, you have to specify a non-empty value.'
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
 
         return value

@@ -1,4 +1,4 @@
-'''
+"""
 confpanel.py
 
 Copyright 2007 Andres Riancho
@@ -17,10 +17,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-'''
+"""
 import gtk
 
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.plugins.plugin import Plugin
 from w3af.core.data.options.option_list import OptionList
 from w3af.core.ui.gui.constants import W3AF_ICON
@@ -28,7 +28,7 @@ from w3af.core.ui.gui import entries, helpers
 
 
 class OnlyOptions(gtk.VBox):
-    '''Only the options for configuration.
+    """Only the options for configuration.
 
     :param parentwidg: The parentwidg, to propagate changes
     :param plugin: The selected plugin, for which the configuration is.
@@ -37,7 +37,7 @@ class OnlyOptions(gtk.VBox):
     :param rvrt_btn: The revert button.
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, parentwidg, w3af, plugin, save_btn, rvrt_btn, overwriter=None):
         super(OnlyOptions, self).__init__()
         if overwriter is None:
@@ -87,10 +87,10 @@ class OnlyOptions(gtk.VBox):
         self.show()
 
     def _createNotebook(self):
-        '''This create the notebook with all the options.
+        """This create the notebook with all the options.
 
         :return: The created notebook if more than one grouping
-        '''
+        """
         # let's get the tabs, but in order!
         tabs = []
         for o in self.options:
@@ -118,7 +118,7 @@ class OnlyOptions(gtk.VBox):
         return nb
 
     def _makeTable(self, options, prop):
-        '''Creates the table in which the options are shown.
+        """Creates the table in which the options are shown.
 
         :param options: The options to show
         :param prop: The propagation function for this options
@@ -131,7 +131,7 @@ class OnlyOptions(gtk.VBox):
             - an optional button to get more help (if the help is available)
 
         Also, the configurable widget gets a tooltip for a small description.
-        '''
+        """
         table = entries.EasyTable(len(options), 3)
 
         for _, opt in enumerate(options):
@@ -156,13 +156,13 @@ class OnlyOptions(gtk.VBox):
         return table
 
     def _changedAnyWidget(self, like_initial):
-        '''Adjust the save/revert buttons and alert the tree of the change.
+        """Adjust the save/revert buttons and alert the tree of the change.
 
         :param like_initial: if the widgets are modified or not.
 
         It only will be called if any widget changed its state, through
         a propagation buffer.
-        '''
+        """
         self.save_btn.set_sensitive(not like_initial)
         self.rvrt_btn.set_sensitive(not like_initial)
         self.parentwidg.config_changed(like_initial)
@@ -174,15 +174,15 @@ class OnlyOptions(gtk.VBox):
             label.set_markup("<b>%s</b>" % text)
 
     def _changedWidget(self, widg, like_initial):
-        '''Receives signal when a widget changed or not.
+        """Receives signal when a widget changed or not.
 
         :param widg: the widget who changed.
         :param like_initial: if it's modified or not
 
         Handles the boldness of the option label and then propagates
         the change.
-        '''
-        (labl, orig, chng) = self.widgets_status[widg]
+        """
+        labl, orig, chng = self.widgets_status[widg]
         if like_initial:
             labl.set_text(orig)
         else:
@@ -193,11 +193,11 @@ class OnlyOptions(gtk.VBox):
             propag.change(widg, like_initial)
 
     def _showHelp(self, widg, helpmsg):
-        '''Shows a dialog with the help message of the config option.
+        """Shows a dialog with the help message of the config option.
 
         :param widg: the widget who generated the signal
         :param helpmsg: the message to show in the dialog
-        '''
+        """
         dlg = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_INFO,
                                 gtk.BUTTONS_OK, helpmsg)
         dlg.set_title('Configuration help')
@@ -205,14 +205,14 @@ class OnlyOptions(gtk.VBox):
         dlg.destroy()
 
     def _save_panel(self, widg, plugin):
-        '''Saves the config changes to the plugins.
+        """Saves the config changes to the plugins.
 
         :param widg: the widget who generated the signal
         :param plugin: the plugin to save the configuration
 
         First it checks if there's some invalid configuration, then gets the
         value of each option and save them to the plugin.
-        '''
+        """
         # check if all widgets are valid
         invalid = []
         for opt in self.options:
@@ -242,7 +242,7 @@ class OnlyOptions(gtk.VBox):
                                   plugin.ptype, plugin.pname, self.options)
             else:
                 SetOptionsWrapper(plugin.set_options, self.options)
-        except (w3afException, ValueError):
+        except (BaseFrameworkException, ValueError):
             return
         
         for opt in self.options:
@@ -256,17 +256,18 @@ class OnlyOptions(gtk.VBox):
         self.saved_successfully = True
 
     def _revertPanel(self, *vals):
-        '''Revert all widgets to their initial state.'''
+        """Revert all widgets to their initial state."""
         for widg in self.widgets_status:
             widg.revert_value()
 
         msg = "The plugin configuration was reverted to its last saved state"
         self.w3af.mainwin.sb(msg)
 
-SetOptionsWrapper = helpers._Wrapper((w3afException, ValueError))
+SetOptionsWrapper = helpers._Wrapper((BaseFrameworkException, ValueError))
+
 
 class ConfigDialog(gtk.Dialog):
-    '''Puts a Config panel inside a Dialog.
+    """Puts a Config panel inside a Dialog.
 
     :param title: the title of the window.
     :param w3af: the Core instance
@@ -275,7 +276,7 @@ class ConfigDialog(gtk.Dialog):
                        actual value
 
     :author: Facundo Batista <facundobatista =at= taniquetil.com.ar>
-    '''
+    """
     def __init__(self, title, w3af, plugin, overwriter=None, showDesc=False):
         super(ConfigDialog, self).__init__(title, None, gtk.DIALOG_MODAL, ())
         self.set_icon_from_file(W3AF_ICON)
@@ -311,35 +312,35 @@ class ConfigDialog(gtk.Dialog):
         self.destroy()
 
     def _button(self, text="", stock=None, tooltip=''):
-        '''Creates a button.'''
+        """Creates a button."""
         b = entries.SemiStockButton(text, stock, tooltip)
         b.show()
         self.action_area.pack_start(b)
         return b
 
     def config_changed(self, like_initial):
-        '''Propagates the change from the options.
+        """Propagates the change from the options.
 
         :param like_initial: If the config is like the initial one
-        '''
+        """
         self.like_initial = like_initial
 
     def _evt_close(self, widget, event):
-        '''Handles the user trying to close the configuration.
+        """Handles the user trying to close the configuration.
 
         Filters by event.
-        '''
+        """
         if event.type != gtk.gdk.DELETE:
             return False
         return self._close()
 
     def _btn_close(self, widget):
-        '''Handles the user trying to close the configuration.'''
+        """Handles the user trying to close the configuration."""
         if not self._close():
             self.emit("delete_event", gtk.gdk.Event(gtk.gdk.DELETE))
 
     def _close(self):
-        '''Generic close.'''
+        """Generic close."""
         if self.like_initial:
             return False
 
@@ -352,7 +353,7 @@ class ConfigDialog(gtk.Dialog):
 
 
 class AdvancedTargetConfigDialog(ConfigDialog):
-    '''Inherits from the config dialog and overwrites the close method
+    """Inherits from the config dialog and overwrites the close method
 
     :param title: the title of the window.
     :param w3af: the Core instance
@@ -361,14 +362,14 @@ class AdvancedTargetConfigDialog(ConfigDialog):
                        actual value
 
     :author: Andres Riancho
-    '''
+    """
     def __init__(self, title, w3af, plugin, overwriter=None):
         if overwriter is None:
             overwriter = {}
         ConfigDialog.__init__(self, title, w3af, plugin, overwriter)
 
     def _close(self):
-        '''Advanced target close that makes more sense.'''
+        """Advanced target close that makes more sense."""
         if self.like_initial:
             return False
 

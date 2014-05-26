@@ -1,4 +1,4 @@
-'''
+"""
 genexus_xml.py
 
 Copyright 2006 Andres Riancho
@@ -18,39 +18,39 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import xml.dom.minidom
 
 import w3af.core.controllers.output_manager as om
 import w3af.core.data.kb.knowledge_base as kb
 
 from w3af.core.controllers.plugins.crawl_plugin import CrawlPlugin
-from w3af.core.controllers.exceptions import w3afException
-from w3af.core.controllers.exceptions import w3afRunOnce
+from w3af.core.controllers.exceptions import BaseFrameworkException
+from w3af.core.controllers.exceptions import RunOnce
 from w3af.core.controllers.misc.decorators import runonce
 from w3af.core.controllers.core_helpers.fingerprint_404 import is_404
 from w3af.core.data.kb.info import Info
 
 
 class genexus_xml(CrawlPlugin):
-    '''
+    """
     Analyze the execute.xml and DeveloperMenu.xml files and find new URLs
     
     :author: Daniel Maldonado (daniel_5502@yahoo.com.ar)
     :url: http://caceriadespammers.com.ar
-    '''
+    """
 
     def __init__(self):
         CrawlPlugin.__init__(self)
 
-    @runonce(exc_class=w3afRunOnce)
+    @runonce(exc_class=RunOnce)
     def crawl(self, fuzzable_request):
-        '''
+        """
         Get the execute.xml file and parse it.
 
         :param fuzzable_request: A fuzzable_request instance that contains
                                 (among other things) the URL to test.
-        '''
+        """
         base_url = fuzzable_request.get_url().base_url()
         
         for file_name in ('execute.xml', 'DeveloperMenu.xml'):
@@ -82,7 +82,7 @@ class genexus_xml(CrawlPlugin):
                 try:
                     dom = xml.dom.minidom.parseString(http_response.get_body())
                 except:
-                    raise w3afException('Error while parsing "%s"' % file_name)
+                    raise BaseFrameworkException('Error while parsing "%s"' % file_name)
                 else:
                     raw_url_list = dom.getElementsByTagName("ObjLink")
                     parsed_url_list = []
@@ -104,13 +104,13 @@ class genexus_xml(CrawlPlugin):
                                          parsed_url_list)
 
     def get_long_desc(self):
-        '''
+        """
         :return: A DETAILED description of the plugin functions and features.
-        '''
-        return '''
+        """
+        return """
         This plugin searches for GeneXus' execute.xml and DeveloperMenu.xml
         file and parses it.
 
         By parsing this files, you can get more information about the
         target web application.
-        '''
+        """

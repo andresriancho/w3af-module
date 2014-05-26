@@ -1,4 +1,4 @@
-'''
+"""
 profiles.py
 
 Copyright 2012 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 import os
 
 import w3af.core.data.kb.config as cf
@@ -26,7 +26,7 @@ import w3af.core.data.kb.config as cf
 from w3af.core.controllers.misc_settings import MiscSettings
 from w3af.core.controllers.misc.get_local_ip import get_local_ip
 from w3af.core.controllers.misc.get_file_list import get_file_list
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.misc.homeDir import HOME_DIR
 from w3af.core.data.profile.profile import profile as profile
 
@@ -37,15 +37,15 @@ class w3af_core_profiles(object):
         self._w3af_core = w3af_core
 
     def save_current_to_new_profile(self, profile_name, profileDesc=''):
-        '''
+        """
         Saves current config to a newly created profile.
 
         :param profile_name: The profile to clone
         :param profileDesc: The description of the new profile
 
         :return: The new profile instance if the profile was successfully saved.
-                 Else, raise a w3afException.
-        '''
+                 Else, raise a BaseFrameworkException.
+        """
         # Create the new profile.
         profile_inst = profile()
         profile_inst.set_desc(profileDesc)
@@ -56,13 +56,13 @@ class w3af_core_profiles(object):
         return self.save_current_to_profile(profile_name, profileDesc)
 
     def save_current_to_profile(self, profile_name, prof_desc='', prof_path=''):
-        '''
+        """
         Save the current configuration of the core to the profile called
         profile_name.
 
         :return: The new profile instance if the profile was successfully saved.
-            otherwise raise a w3afException.
-        '''
+            otherwise raise a BaseFrameworkException.
+        """
         # Open the already existing profile
         new_profile = profile(profile_name, workdir=os.path.dirname(prof_path))
 
@@ -102,12 +102,12 @@ class w3af_core_profiles(object):
         return new_profile
 
     def use_profile(self, profile_name, workdir=None):
-        '''
+        """
         Gets all the information from the profile and stores it in the
         w3af core plugins / target attributes for later use.
 
-        @raise w3afException: if the profile to load has some type of problem.
-        '''
+        @raise BaseFrameworkException: if the profile to load has some type of problem.
+        """
         # Clear all enabled plugins if profile_name is None
         if profile_name is None:
             self._w3af_core.plugins.zero_enabled_plugins()
@@ -184,19 +184,18 @@ class w3af_core_profiles(object):
                     self._w3af_core.plugins.set_plugin_options(plugin_type,
                                                                plugin_name,
                                                                plugin_options)
-                except w3afException, w3e:
+                except BaseFrameworkException, w3e:
                     msg = 'Setting the options for plugin "%s.%s" raised an' \
                           ' exception due to unknown or invalid configuration' \
-                          ' parameters.'
-                    msg += ' ' + str(w3e)
-                    error_messages.append(msg % (plugin_type, plugin_name))
+                          ' parameters. %s'
+                    error_messages.append(msg % (plugin_type, plugin_name, w3e))
 
         if error_messages:
             msg = error_fmt % (profile_name, '\n    - '.join(error_messages))
-            raise w3afException(msg)
+            raise BaseFrameworkException(msg)
 
     def get_profile_list(self, directory=HOME_DIR):
-        '''
+        """
         :param directory: The directory from which profiles are loaded
 
         :return: Two different lists:
@@ -210,7 +209,7 @@ class w3af_core_profiles(object):
         >>> 'owasp_top10' in valid_lower
         True
 
-        '''
+        """
         profile_home = os.path.join(directory, 'profiles')
         str_profile_list = get_file_list(profile_home, extension='.pw3af')
 
@@ -222,16 +221,16 @@ class w3af_core_profiles(object):
                 profile_home, profile_name + '.pw3af')
             try:
                 profile_instance = profile(profile_filename)
-            except w3afException:
+            except BaseFrameworkException:
                 invalid_profiles.append(profile_filename)
             else:
                 instance_list.append(profile_instance)
         return instance_list, invalid_profiles
 
     def remove_profile(self, profile_name):
-        '''
-        :return: True if the profile was successfully removed. Else, raise a w3afException.
-        '''
+        """
+        :return: True if the profile was successfully removed. Else, raise a BaseFrameworkException.
+        """
         profile_inst = profile(profile_name)
         profile_inst.remove()
         return True

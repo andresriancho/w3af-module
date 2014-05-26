@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import sys
 import os
+import logging
 
 # Need this hack in order to be able to re-add the current path to the
 # python-path, since running a script seems to change it (?)
@@ -27,20 +28,22 @@ from w3af.core.controllers.ci.nosetests_wrapper.utils.output import (print_info_
                                                                      print_will_fail,
                                                                      print_summary)
 
+
 def summarize_exit_codes(exit_codes):
-    '''
+    """
     Take a list of exit codes, if at least one of them is not 0, then return
     that number.
-    '''
+    """
     for ec in exit_codes:
         if ec != 0: return ec
     
     return 0
 
+
 def nose_strategy():
-    '''
+    """
     :return: A list with the nosetests commands to run.
-    '''
+    """
     test_ids = get_test_ids(NOSE_RUN_SELECTOR)
     
     for tests_to_run in zip(*[iter(test_ids)]*CHUNK_SIZE):
@@ -60,7 +63,7 @@ if __name__ == '__main__':
     done_list = []
     
     configure_logging(LOG_FILE)
-    
+
     with futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for nose_cmd, first, last in nose_strategy():
             args = run_nosetests, nose_cmd, first, last
@@ -84,12 +87,14 @@ if __name__ == '__main__':
                         print_will_fail(exit_code)
                     
             except futures.TimeoutError:
+                logging.debug('Hit futures.as_completed timeout.')
+                logging.warning('Waiting...')
                 print_status(done_list, total_tests)
             
             # Filter future_list to avoid issues with tasks which are already
             # finished/done
             future_list = [f for f in future_list if f not in done_list]
-                
+
     all_tests = get_all_tests()
     run_tests = get_run_tests()
     ignored_tests = get_ignored_tests()

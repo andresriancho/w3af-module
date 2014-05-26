@@ -1,4 +1,4 @@
-'''
+"""
 cache_control.py
 
 Copyright 2006 Andres Riancho
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-'''
+"""
 from collections import namedtuple
 
 import w3af.core.data.constants.severity as severity
@@ -27,15 +27,15 @@ import w3af.core.data.parsers.parser_cache as parser_cache
 from w3af.core.data.db.disk_list import DiskList
 from w3af.core.data.kb.vuln import Vuln
 from w3af.core.controllers.plugins.grep_plugin import GrepPlugin
-from w3af.core.controllers.exceptions import w3afException
+from w3af.core.controllers.exceptions import BaseFrameworkException
 
 
 class cache_control(GrepPlugin):
-    '''
+    """
     Grep every page for Pragma and Cache-Control headers.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
-    '''
+    """
     
     SAFE_CONFIG = {'pragma': 'no-cache',
                    'cache-control': 'no-store'}
@@ -65,12 +65,12 @@ class cache_control(GrepPlugin):
             self._analyze_cache_control(cache_control_settings, response)
     
     def _get_cache_control(self, response):
-        '''
+        """
         :param response: The http response we want to extract the information
                          from.
         :return: A list with the headers and meta tag information used to
                  configure the browser cache control.
-        '''
+        """
         res = []
         CacheSettings = namedtuple('CacheSettings', ['type', 'value'])
         cache_control_headers = self.SAFE_CONFIG.keys()
@@ -83,7 +83,7 @@ class cache_control(GrepPlugin):
                 
         try:
             doc_parser = parser_cache.dpc.get_document_parser_for(response)
-        except w3afException:
+        except BaseFrameworkException:
             pass
         else:
             for meta_tag in doc_parser.get_meta_tags():
@@ -98,10 +98,10 @@ class cache_control(GrepPlugin):
         return res
 
     def _analyze_cache_control(self, cache_control_settings, response):
-        '''
+        """
         Analyze the cache control settings set in headers and meta tags,
         store the information to report the vulnerabilities.
-        '''
+        """
         received_headers = set()
         
         for cache_setting in cache_control_settings:
@@ -153,7 +153,7 @@ class cache_control(GrepPlugin):
         self._ids.cleanup()
 
     def get_long_desc(self):
-        return '''\
+        return """\
         This plugin analyzes every HTTPS response and reports instances of
         incorrect cache control which might lead the user's browser to cache
         sensitive contents on their system.
@@ -161,4 +161,4 @@ class cache_control(GrepPlugin):
         The expected headers for HTTPS responses are:
             - Pragma: No-cache
             - Cache-control: No-store
-        '''
+        """
