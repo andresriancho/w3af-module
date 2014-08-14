@@ -1,8 +1,31 @@
-# circleci finds setup.py and thinks I want to run it. I actually want, but not at this
-# stage, so I override dependencies and just install the requirements.
 dependencies:
+  # circleci finds setup.py and thinks I want to run it. I actually want, but not at this
+  # stage, so I override dependencies and just install the requirements.
   override:
     - pip install -r requirements.txt
+
+  post:
+    # Lets get the latest w3af from the right branch
+    - "[[ $CIRCLE_BRANCH == 'master' ]] && git pull -s subtree w3af master || git pull -s subtree w3af develop":
+      pwd:
+        w3af-repo/
+
+deployment:
+  production:
+    branch: master
+    owner: andresriancho
+    commands:
+      - git push --squash:
+          pwd:
+            w3af-repo/
+
+  staging:
+    branch: develop
+    owner: andresriancho
+    commands:
+      - git push --squash:
+          pwd:
+            w3af-repo/
 
 test:
   override:
