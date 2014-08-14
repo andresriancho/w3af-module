@@ -15,6 +15,7 @@ To install w3af as a module you'll have to follow these steps:
 ::
 
     git clone git@github.com:andresriancho/w3af-module.git
+    # optional: git checkout develop
     sudo python setup.py install
 
 After some seconds you should be able to move to any directory and from a
