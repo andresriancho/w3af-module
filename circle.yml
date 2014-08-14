@@ -29,7 +29,7 @@ deployment:
     branch: master
     owner: andresriancho
     commands:
-      - git commit -a -m 'Merging latest w3af(master) into w3af-module(master)'
+      - git commit w3af-repo/ -m 'Merging latest w3af(master) into w3af-module(master)'; true
       - git push
 
       # Note the master in the URLs
@@ -39,7 +39,7 @@ deployment:
     branch: develop
     owner: andresriancho
     commands:
-      - git commit -a -m 'Merging latest w3af(develop) into w3af-module(develop)'
+      - git commit w3af-repo/ -m 'Merging latest w3af(develop) into w3af-module(develop)'; true
       - git push
 
       # Note the develop in the URLs
