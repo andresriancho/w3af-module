@@ -5,28 +5,8 @@ dependencies:
     - pip install -r requirements.txt
 
   post:
-    # Lets get the latest w3af from the right branch
-    - "[[ $CIRCLE_BRANCH == 'master' ]] && git pull -s subtree w3af master || git pull -s subtree w3af develop":
-        pwd:
-          w3af-repo/
-
-
-deployment:
-  production:
-    branch: master
-    owner: andresriancho
-    commands:
-      - git push --squash:
-          pwd:
-            w3af-repo/
-
-  staging:
-    branch: develop
-    owner: andresriancho
-    commands:
-      - git push --squash:
-          pwd:
-            w3af-repo/
+    # Lets get the latest w3af-develop or w3af-master remote data
+    - mod_utils/ci/update-branch.sh
 
 
 test:
@@ -40,13 +20,19 @@ deployment:
     branch: master
     owner: andresriancho
     commands:
+      - git commit -a -m 'Merging latest w3af(master) into w3af-module(master)'
+      - git push
+
       # Note the master in the URLs
       - "curl --header 'Content-Type: application/json' --request POST https://circleci.com/api/v1/project/andresriancho/octopus/tree/master?circle-token=$OCTOPUS_TOKEN"
-
 
   staging:
     branch: develop
     owner: andresriancho
     commands:
+      - git commit -a -m 'Merging latest w3af(develop) into w3af-module(develop)'
+      - git push
+
       # Note the develop in the URLs
       - "curl --header 'Content-Type: application/json' --request POST https://circleci.com/api/v1/project/andresriancho/octopus/tree/develop?circle-token=$OCTOPUS_TOKEN"
+
