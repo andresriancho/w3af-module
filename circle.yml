@@ -29,5 +29,6 @@ deployment:
 
 test:
   override:
+    - "pylint --msg-template='{msg_id}:{line:3d},{column}: {obj}: {msg}' -E tests mod_utils setup.py"
     - nosetests --exclude-dir=w3af-repo --exclude-dir=w3af -v
 
