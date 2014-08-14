@@ -7,8 +7,8 @@ dependencies:
   post:
     # Lets get the latest w3af from the right branch
     - "[[ $CIRCLE_BRANCH == 'master' ]] && git pull -s subtree w3af master || git pull -s subtree w3af develop":
-      pwd:
-        w3af-repo/
+        pwd:
+          w3af-repo/
 
 
 deployment:
