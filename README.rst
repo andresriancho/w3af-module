@@ -33,9 +33,11 @@ python interpreter run ``import w3af``.
 Dependencies
 ============
 
-It is important to note that this script does NOT install any pip or operating
-system packages required by w3af. You still need to go through the regular
-installation process to get a working w3af install.
+It is important to note that this script does install any pip dependencies required
+by w3af, but this process might fail if the operating system packages (such as the
+python development headers) are not installed. Please read
+`the official w3af documentation <http://docs.w3af.org/en/latest/install.html>`_ to
+learn more about the installation process.
 
 
 The w3af directory
