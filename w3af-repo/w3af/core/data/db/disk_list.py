@@ -120,6 +120,7 @@ class DiskList(object):
         :return: True if the value is in our list.
         """
         assert self._state == OPEN
+
         t = (self._get_eq_attrs_values(value),)
         # Adding the "limit 1" to the query makes it faster, as it won't
         # have to scan through all the table/index, it just stops on the
@@ -164,7 +165,7 @@ class DiskList(object):
         # How do I avoid loading all items in memory?
         objects = []
         results = self.db.select('SELECT pickle FROM %s' % self.table_name)
-        
+
         for r in results:
             obj = cPickle.loads(r[0])
             objects.append(obj)

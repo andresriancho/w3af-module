@@ -26,7 +26,6 @@ from w3af.core.controllers.misc.get_local_ip import get_local_ip
 from w3af.core.controllers.misc.get_net_iface import get_net_iface
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_list import OptionList
-from w3af.core.data.parsers.url import URL
 from w3af.core.data.options.option_types import URL_LIST
 
 
@@ -65,9 +64,10 @@ class MiscSettings(Configurable):
             cf.cf.save('interface', ifname)
 
             #
-            #   This doesn't send any packets, and gives you a nice default setting.
-            #   In most cases, it is the "public" IP address, which will work perfectly
-            #   in all plugins that need a reverse connection (rfi_proxy)
+            # This doesn't send any packets, and gives you a nice default
+            # setting. In most cases, it is the "public" IP address, which will
+            # work perfectly in all plugins that need a reverse connection
+            # (rfi_proxy)
             #
             local_address = get_local_ip()
             if not local_address:
@@ -89,9 +89,13 @@ class MiscSettings(Configurable):
                           tabid='Fuzzer parameters')
         ol.add(opt)
 
-        d = 'Indicates if w3af plugins will send the fuzzed payload to the file forms'
+        d = 'Indicates if w3af plugins will send payloads in the content of'\
+            ' multipart/post form files.'
+        h = 'If enabled, and multipart/post forms with files are found, w3af'\
+            'will fill those file inputs with pseudo-files containing the' \
+            'payloads required to identify vulnerabilities.'
         opt = opt_factory('fuzz_form_files', cf.cf.get('fuzz_form_files'), d,
-                          'boolean', tabid='Fuzzer parameters')
+                          'boolean', tabid='Fuzzer parameters', help=h)
         ol.add(opt)
 
         d = 'Indicates if w3af plugins will send fuzzed filenames in order to'\
@@ -101,9 +105,8 @@ class MiscSettings(Configurable):
             ' other things: http://test/file\'a\'a\'name.php in order to'\
             ' find SQL injections. This type of vulns are getting more '\
             ' common every day!'
-        opt = opt_factory(
-            'fuzz_url_filenames', cf.cf.get('fuzz_url_filenames'),
-            d, 'boolean', help=h, tabid='Fuzzer parameters')
+        opt = opt_factory('fuzz_url_filenames', cf.cf.get('fuzz_url_filenames'),
+                          d, 'boolean', help=h, tabid='Fuzzer parameters')
         ol.add(opt)
 
         desc = 'Indicates if w3af plugins will send fuzzed URL parts in order'\

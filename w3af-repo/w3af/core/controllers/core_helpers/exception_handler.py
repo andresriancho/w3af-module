@@ -23,6 +23,7 @@ import hashlib
 import random
 import threading
 import traceback
+import os
 
 import w3af.core.data.kb.config as cf
 import w3af.core.controllers.output_manager as om
@@ -34,6 +35,8 @@ from w3af.core.controllers.exception_handling.cleanup_bug_report import cleanup_
 from w3af.core.controllers.exceptions import (ScanMustStopException,
                                               ScanMustStopByUserRequest,
                                               ScanMustStopByUnknownReasonExc)
+
+DEBUG = os.environ.get('DEBUG', '0') == '1'
 
 
 class ExceptionHandler(object):
@@ -47,6 +50,11 @@ class ExceptionHandler(object):
     MAX_EXCEPTIONS_PER_PLUGIN = 3
     NO_HANDLING = (MemoryError, ScanMustStopByUnknownReasonExc,
                    ScanMustStopException, ScanMustStopByUserRequest)
+
+    if DEBUG:
+        NO_HANDLING = list(NO_HANDLING)
+        NO_HANDLING.append(Exception)
+        NO_HANDLING = tuple(NO_HANDLING)
 
     def __init__(self):
         # TODO: Maybe this should be a DiskList just to make sure we don't
@@ -257,6 +265,9 @@ class ExceptionData(object):
         self.fuzzable_request = current_status.get_current_fuzzable_request(self.phase)
         self.fuzzable_request = cleanup_bug_report(str(self.fuzzable_request))
 
+    def get_traceback_str(self):
+        return self.traceback_str
+
     def _get_last_call_info(self, tb):
         current = tb
         while getattr(current, 'tb_next', None) is not None:
@@ -265,11 +276,11 @@ class ExceptionData(object):
         return current.tb_lineno, current.tb_frame.f_code.co_name
 
     def get_summary(self):
-        res = 'An exception was found while running %s.%s on "%s". The'\
+        res = 'A "%s" exception was found while running %s.%s on "%s". The'\
               ' exception was: "%s" at %s:%s():%s.'
-        res = res % (
-            self.phase, self.plugin, self.fuzzable_request, self.exception,
-            self.filename, self.function_name, self.lineno)
+        res = res % (self.exception.__class__.__name__, self.phase, self.plugin,
+                     self.fuzzable_request, self.exception, self.filename,
+                     self.function_name, self.lineno)
         return res
 
     def get_details(self):

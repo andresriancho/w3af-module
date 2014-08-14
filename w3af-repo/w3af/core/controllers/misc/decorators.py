@@ -25,7 +25,7 @@ import functools
 
 from functools import wraps
 
-from w3af.core.controllers.misc.lru import LRU
+from darts.lib.utils.lru import SynchronizedLRUDict
 
 
 def runonce(exc_class=Exception):
@@ -125,19 +125,20 @@ class memoized(object):
     """
     def __init__(self, func, lru_size=100):
         self.func = func
-        self.cache = LRU(lru_size)
+        self.cache = SynchronizedLRUDict(lru_size)
 
-    def __call__(self, *args):
-        if not isinstance(args, collections.Hashable):
+    def __call__(self, *args, **kwargs):
+        if not isinstance(args, collections.Hashable) or\
+        not isinstance(tuple(kwargs.items()), collections.Hashable):
             # uncacheable. a list, for instance.
             # better to not cache than blow up.
-            return self.func(*args)
+            return self.func(*args, **kwargs)
 
-        if args in self.cache:
-            return self.cache[args]
-        else:
-            value = self.func(*args)
-            self.cache[args] = value
+        try:
+            return self.cache[(args, tuple(kwargs.items()))]
+        except KeyError:
+            value = self.func(*args, **kwargs)
+            self.cache[(args, tuple(kwargs.items()))] = value
             return value
 
     def __repr__(self):

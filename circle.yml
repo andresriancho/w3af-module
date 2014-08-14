@@ -1,10 +1,43 @@
-# circleci finds setup.py and thinks I want to run it. I actually want, but not at this
-# stage, so I override dependencies and just install the requirements.
+general:
+  branches:
+    ignore:
+      - w3af-develop
+      - w3af-master
+
 dependencies:
+  # circleci finds setup.py and thinks I want to run it. I actually want, but not at this
+  # stage, so I override dependencies and just install the requirements.
   override:
     - pip install -r requirements.txt
 
+  post:
+    # Lets get the latest w3af-develop or w3af-master remote data
+    - mod_utils/ci/update-branch.sh
+
 test:
   override:
+    - "pylint --msg-template='{msg_id}:{line:3d},{column}: {obj}: {msg}' -E tests mod_utils setup.py"
     - nosetests --exclude-dir=w3af-repo --exclude-dir=w3af -v
+
+
+deployment:
+  production:
+    branch: master
+    owner: andresriancho
+    commands:
+      - git commit w3af-repo/ -m 'Merging latest w3af(master) into w3af-module(master) [ci skip]'; true
+      - git push --set-upstream origin master
+
+      # Note the master in the URLs
+      - "curl --header 'Content-Type: application/json' --request POST https://circleci.com/api/v1/project/andresriancho/octopus/tree/master?circle-token=$OCTOPUS_TOKEN"
+
+  staging:
+    branch: develop
+    owner: andresriancho
+    commands:
+      - git commit w3af-repo/ -m 'Merging latest w3af(develop) into w3af-module(develop) [ci skip]'; true
+      - git push --set-upstream origin develop
+
+      # Note the develop in the URLs
+      - "curl --header 'Content-Type: application/json' --request POST https://circleci.com/api/v1/project/andresriancho/octopus/tree/develop?circle-token=$OCTOPUS_TOKEN"
 

@@ -101,7 +101,7 @@ class BasicKnowledgeBase(object):
         """
         for saved_vuln in self.get(location_a, location_b):
             
-            if saved_vuln.get_var() == info_inst.get_var() and\
+            if saved_vuln.get_token_name() == info_inst.get_token_name() and\
             saved_vuln.get_url() == info_inst.get_url():
             
                 if saved_vuln.get_dc() is None and\
@@ -427,7 +427,8 @@ class DBKnowledgeBase(BasicKnowledgeBase):
 
     def get_all_entries_of_class(self, klass):
         """
-        :return: A list of all objects of class == klass that are saved in the kb.
+        :return: A list of all objects of class == klass that are saved in the
+                 kb.
         """
         query = 'SELECT pickle FROM %s'
         results = self.db.select(query % self.table_name)
@@ -522,12 +523,11 @@ class DBKnowledgeBase(BasicKnowledgeBase):
         :return: True if the FuzzableRequest was previously unknown 
         """
         if not isinstance(fuzzable_request, FuzzableRequest):
-            msg = 'add_fuzzable_request requires a FuzzableRequest as parameter.'\
-                  'got %s instead.'
+            msg = 'add_fuzzable_request requires a FuzzableRequest as '\
+                  'parameter, got "%s" instead.'
             raise TypeError(msg % type(fuzzable_request))
         
         self.add_url(fuzzable_request.get_url())
-        
         return self.fuzzable_requests.add(fuzzable_request)
         
 

@@ -43,13 +43,13 @@ from w3af.core.controllers.exceptions import (ScanMustStopException,
                                               ScanMustStopByKnownReasonExc,
                                               ScanMustStopByUserRequest,
                                               ScanMustStopOnUrlError)
-from w3af.core.data.parsers.HTTPRequestParser import HTTPRequestParser
+from w3af.core.data.parsers.http_request_parser import http_request_parser
 from w3af.core.data.parsers.url import URL
-from w3af.core.data.request.factory import create_fuzzable_request_from_parts
 from w3af.core.data.url.handlers.keepalive import URLTimeoutError
 from w3af.core.data.url.HTTPResponse import HTTPResponse
 from w3af.core.data.url.HTTPRequest import HTTPRequest
 from w3af.core.data.dc.headers import Headers
+from w3af.core.data.request.fuzzable_request import FuzzableRequest
 
 
 MAX_ERROR_COUNT = 10
@@ -163,7 +163,7 @@ class ExtendedUrllib(object):
 
     def get_cookies(self):
         """
-        :return: The cookies that this uri opener has collected during this scan.
+        :return: The cookies that this uri opener has collected during this scan
         """
         return self.settings.get_cookies()
 
@@ -174,14 +174,15 @@ class ExtendedUrllib(object):
         happens, this library allows the user to send the request by specifying
         two parameters for the send_raw_request method:
 
-        :param head: "<method> <URI> <HTTP version>\r\nHeader: Value\r\nHeader2: Value2..."
-        :param postdata: The postdata, if any. If set to '' or None, no postdata is sent.
-        :param fix_content_len: Indicates if the content length has to be fixed or not.
+        :param head: "<method> <URI> <HTTP version>\r\nHeader: Value\r\n..."
+        :param postdata: The data as string
+                         If set to '' or None, no postdata is sent
+        :param fix_content_len: Indicates if the content length has to be fixed
 
         :return: An HTTPResponse object.
         """
         # Parse the two strings
-        fuzz_req = HTTPRequestParser(head, postdata)
+        fuzz_req = http_request_parser(head, postdata)
 
         # Fix the content length
         if fix_content_len:
@@ -221,7 +222,7 @@ class ExtendedUrllib(object):
         data = mutant.get_data()
 
         # Also add the cookie header; this is needed by the CookieMutant
-        headers = mutant.get_headers()
+        headers = mutant.get_all_headers()
         cookie = mutant.get_cookie()
         if cookie:
             headers['Cookie'] = str(cookie)
@@ -317,9 +318,12 @@ class ExtendedUrllib(object):
         #    since we *never* want to return cached responses for POST
         #    requests.
         #
+        data = str(data)
+
         req = HTTPRequest(uri, data=data, cookies=cookies, cache=False,
                           ignore_errors=ignore_errors, method='POST')
         req = self._add_headers(req, headers)
+
         return self._send(req, grep=grep)
 
     def get_remote_file_size(self, req, cache=True):
@@ -714,13 +718,11 @@ class ExtendedUrllib(object):
         domain in cf.cf.get('target_domains'):
 
             # Create a fuzzable request based on the urllib2 request object
-            headers_inst = Headers(request.headers.items())
-            fr = create_fuzzable_request_from_parts(
-                                                    url_instance,
-                                                    request.get_method(),
-                                                    request.get_data(),
-                                                    headers_inst
-                                                    )
+            headers_inst = Headers(request.header_items())
+            fr = FuzzableRequest.from_parts(url_instance,
+                                            request.get_method(),
+                                            str(request.get_data()),
+                                            headers_inst)
 
             self._grep_queue_put((fr, response))
 
