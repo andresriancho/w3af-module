@@ -10,6 +10,7 @@ dependencies:
       pwd:
         w3af-repo/
 
+
 deployment:
   production:
     branch: master
@@ -27,8 +28,25 @@ deployment:
           pwd:
             w3af-repo/
 
+
 test:
   override:
     - "pylint --msg-template='{msg_id}:{line:3d},{column}: {obj}: {msg}' -E tests mod_utils setup.py"
     - nosetests --exclude-dir=w3af-repo --exclude-dir=w3af -v
 
+
+deployment:
+  production:
+    branch: master
+    owner: andresriancho
+    commands:
+      # Note the master in the URLs
+      - "curl --header 'Content-Type: application/json' --request POST https://circleci.com/api/v1/project/andresriancho/octopus/tree/master?circle-token=$OCTOPUS_TOKEN"
+
+
+  staging:
+    branch: develop
+    owner: andresriancho
+    commands:
+      # Note the develop in the URLs
+      - "curl --header 'Content-Type: application/json' --request POST https://circleci.com/api/v1/project/andresriancho/octopus/tree/develop?circle-token=$OCTOPUS_TOKEN"
