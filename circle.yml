@@ -25,7 +25,7 @@ deployment:
     branch: master
     owner: andresriancho
     commands:
-      - git commit w3af-repo/ -m 'Merging latest w3af(master) into w3af-module(master)'; true
+      - git commit w3af-repo/ -m 'Merging latest w3af(master) into w3af-module(master) [ci skip]'; true
       - git push --set-upstream origin master
 
       # Note the master in the URLs
@@ -35,7 +35,7 @@ deployment:
     branch: develop
     owner: andresriancho
     commands:
-      - git commit w3af-repo/ -m 'Merging latest w3af(develop) into w3af-module(develop)'; true
+      - git commit w3af-repo/ -m 'Merging latest w3af(develop) into w3af-module(develop) [ci skip]'; true
       - git push --set-upstream origin develop
 
       # Note the develop in the URLs
