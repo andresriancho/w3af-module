@@ -1,5 +1,10 @@
 #!/bin/bash -x
 
+# git configuration
+git config --global push.default simple
+git config --global user.email "ci@circleci.com"
+git config --global user.name "CircleCI"
+
 git remote add -f w3af git://github.com/andresriancho/w3af.git
 
 git branch -D w3af-master

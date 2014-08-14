@@ -14,12 +14,6 @@ dependencies:
     # Lets get the latest w3af-develop or w3af-master remote data
     - mod_utils/ci/update-branch.sh
 
-    # git configuration
-    - git config --global push.default simple
-    - git config --global user.email "ci@circleci.com"
-    - git config --global user.name "CircleCI"
-
-
 test:
   override:
     - "pylint --msg-template='{msg_id}:{line:3d},{column}: {obj}: {msg}' -E tests mod_utils setup.py"
