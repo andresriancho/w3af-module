@@ -1,6 +1,7 @@
 #!/bin/bash -x
 
 git remote add -f w3af git://github.com/andresriancho/w3af.git
+git fetch w3af
 
 git branch -D w3af-master
 git branch -D w3af-develop
