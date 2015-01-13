@@ -19,6 +19,7 @@ class BaseInstallMixin(object):
 
     # To be defined in child classes
     INSTALL_CMD = None
+    ERROR_MSG = None
     UNINSTALL_CMDS = ["find venv/ -name 'w3af*' | xargs rm -rf",
                       "rm -rf ~/.w3af/",
                       "rm -rf build/ dist/ w3af.egg-info/"]
@@ -76,4 +77,9 @@ class BaseInstallMixin(object):
             subprocess.check_output(shlex.split(DEPS_CMD % sys.executable),
                                     cwd='tests')
         except subprocess.CalledProcessError, cpe:
-            self.assertEqual(False, True, cpe.output)
+            msg = str(cpe.output)
+
+            if self.ERROR_MSG is not None:
+                msg += '\n\n' + self.ERROR_MSG
+
+            self.assertEqual(False, True, msg)
