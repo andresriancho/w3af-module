@@ -13,6 +13,7 @@ dependencies:
   post:
     # Lets get the latest w3af-develop or w3af-master remote data
     - mod_utils/ci/update-branch.sh
+    - pip freeze
 
 test:
   override:
