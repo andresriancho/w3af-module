@@ -32,8 +32,6 @@ from w3af.core.controllers.core_helpers.status import w3af_core_status
 
 class TestExceptionHandler(unittest.TestCase):
 
-    EXCEPT_START = 'A "Exception" exception was found'
-
     def setUp(self):
         self.exception_handler = ExceptionHandler()
         self.exception_handler.clear()
@@ -63,7 +61,8 @@ class TestExceptionHandler(unittest.TestCase):
 
         edata = all_edata[0]
 
-        self.assertTrue(edata.get_summary().startswith(self.EXCEPT_START))
+        self.assertTrue(
+            edata.get_summary().startswith('An exception was found'))
         self.assertTrue('traceback' in edata.get_details())
         self.assertEquals(edata.plugin, 'plugin')
         self.assertEquals(edata.phase, 'phase')
@@ -72,7 +71,7 @@ class TestExceptionHandler(unittest.TestCase):
         self.assertEquals(edata.exception, e)
         # This is very very very dependant on changes to this file, but it was
         # the only way to do it without much effort
-        self.assertEquals(edata.lineno, 50)
+        self.assertEquals(edata.lineno, 48)
 
     @attr('smoke')
     def test_handle_multiple(self):
@@ -94,7 +93,8 @@ class TestExceptionHandler(unittest.TestCase):
 
         edata = all_edata[0]
 
-        self.assertTrue(edata.get_summary().startswith(self.EXCEPT_START))
+        self.assertTrue(
+            edata.get_summary().startswith('An exception was found'))
         self.assertTrue('traceback' in edata.get_details())
         self.assertEquals(edata.plugin, 'plugin')
         self.assertEquals(edata.phase, 'phase')
@@ -121,7 +121,8 @@ class TestExceptionHandler(unittest.TestCase):
 
         edata = unique_edata[0]
 
-        self.assertTrue(edata.get_summary().startswith(self.EXCEPT_START))
+        self.assertTrue(
+            edata.get_summary().startswith('An exception was found'))
         self.assertTrue('traceback' in edata.get_details())
         self.assertEquals(edata.plugin, 'plugin')
         self.assertEquals(edata.phase, 'phase')
@@ -151,7 +152,8 @@ class TestExceptionHandler(unittest.TestCase):
 
         edata = all_edata[0]
 
-        self.assertTrue(edata.get_summary().startswith(self.EXCEPT_START))
+        self.assertTrue(
+            edata.get_summary().startswith('An exception was found'))
         self.assertTrue('traceback' in edata.get_details())
         self.assertEquals(edata.plugin, 'plugin')
         self.assertEquals(edata.phase, 'phase')
@@ -159,7 +161,7 @@ class TestExceptionHandler(unittest.TestCase):
         self.assertEquals(edata.filename, 'test_exception_handler.py')
         # This is very very very dependant on changes to this file, but it was
         # the only way to do it without much effort
-        self.assertEquals(edata.lineno, 134)
+        self.assertEquals(edata.lineno, 135)
 
     def test_handle_multi_calls(self):
 
@@ -186,7 +188,7 @@ class TestExceptionHandler(unittest.TestCase):
 
         # This is very very very dependant on changes to this file, but it was
         # the only way to do it without much effort
-        self.assertEquals(edata.lineno, 167)
+        self.assertEquals(edata.lineno, 169)
 
 
 class fake_status(w3af_core_status):

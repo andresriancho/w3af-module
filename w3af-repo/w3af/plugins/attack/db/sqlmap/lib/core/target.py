@@ -14,7 +14,6 @@ import time
 import urlparse
 
 from lib.core.common import Backend
-from lib.core.common import getUnicode
 from lib.core.common import hashDBRetrieve
 from lib.core.common import intersect
 from lib.core.common import paramToDict
@@ -512,20 +511,17 @@ def _createTargetDirs():
 
     if not os.path.isdir(paths.SQLMAP_OUTPUT_PATH):
         try:
-            if not os.path.isdir(paths.SQLMAP_OUTPUT_PATH):
-                os.makedirs(paths.SQLMAP_OUTPUT_PATH, 0755)
-            warnMsg = "using '%s' as the output directory" % paths.SQLMAP_OUTPUT_PATH
-            logger.warn(warnMsg)
-        except OSError, ex:    
+            os.makedirs(paths.SQLMAP_OUTPUT_PATH, 0755)
+        except OSError, ex:
             tempDir = tempfile.mkdtemp(prefix="sqlmapoutput")
-            warnMsg = "unable to create regular output directory "
+            warnMsg = "unable to create default root output directory "
             warnMsg += "'%s' (%s). " % (paths.SQLMAP_OUTPUT_PATH, ex)
             warnMsg += "Using temporary directory '%s' instead" % tempDir
             logger.warn(warnMsg)
 
             paths.SQLMAP_OUTPUT_PATH = tempDir
 
-    conf.outputPath = os.path.join(getUnicode(paths.SQLMAP_OUTPUT_PATH), getUnicode(conf.hostname))
+    conf.outputPath = os.path.join(paths.SQLMAP_OUTPUT_PATH, conf.hostname)
 
     if not os.path.isdir(conf.outputPath):
         try:

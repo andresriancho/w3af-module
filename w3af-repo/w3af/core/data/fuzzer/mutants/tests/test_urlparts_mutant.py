@@ -20,13 +20,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
 import unittest
-import cPickle
 
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
-from w3af.core.data.fuzzer.mutants.urlparts_mutant import (URLPartsMutant,
-                                                           TOKEN,
-                                                           URLPartsContainer)
+from w3af.core.data.fuzzer.mutants.urlparts_mutant import URLPartsMutant
+from w3af.core.data.fuzzer.mutants.urlparts_mutant import URLPartsContainer
 
 
 class TestURLPartsMutant(unittest.TestCase):
@@ -50,15 +48,6 @@ class TestURLPartsMutant(unittest.TestCase):
         generated_found_at = m.found_at()
 
         self.assertEqual(generated_found_at, expected_found_at)
-
-    def test_pickle(self):
-        divided_path = URLPartsContainer('/', 'ping!', '/bar')
-        loaded_dp = cPickle.loads(cPickle.dumps(divided_path))
-
-        self.assertEqual(loaded_dp, divided_path)
-        self.assertEqual(loaded_dp.url_start, divided_path.url_start)
-        self.assertEqual(loaded_dp.url_end, divided_path.url_end)
-        self.assertEqual(loaded_dp[TOKEN], divided_path[TOKEN])
 
     def test_config_false(self):
         fuzzer_config = {'fuzz_url_parts': False}

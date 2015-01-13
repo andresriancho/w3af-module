@@ -173,7 +173,6 @@ class HTTP_HEADER:
     SERVER = "Server"
     USER_AGENT = "User-Agent"
     TRANSFER_ENCODING = "Transfer-Encoding"
-    URI = "URI"
     VIA = "Via"
 
 class EXPECTED:

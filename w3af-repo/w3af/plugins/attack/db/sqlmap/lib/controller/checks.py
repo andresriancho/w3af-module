@@ -62,7 +62,6 @@ from lib.core.settings import FORMAT_EXCEPTION_STRINGS
 from lib.core.settings import HEURISTIC_CHECK_ALPHABET
 from lib.core.settings import SUHOSIN_MAX_VALUE_LENGTH
 from lib.core.settings import UNKNOWN_DBMS
-from lib.core.settings import URI_HTTP_HEADER
 from lib.core.settings import LOWER_RATIO_BOUND
 from lib.core.settings import UPPER_RATIO_BOUND
 from lib.core.settings import IDS_WAF_CHECK_PAYLOAD
@@ -417,8 +416,7 @@ def checkSqlInjection(place, parameter, value):
                             try:
                                 page, headers = Request.queryPage(reqPayload, place, content=True, raise404=False)
                                 output = extractRegexResult(check, page, re.DOTALL | re.IGNORECASE) \
-                                        or extractRegexResult(check, listToStrValue( \
-                                        [headers[key] for key in headers.keys() if key.lower() != URI_HTTP_HEADER.lower()] \
+                                        or extractRegexResult(check, listToStrValue(headers.headers \
                                         if headers else None), re.DOTALL | re.IGNORECASE) \
                                         or extractRegexResult(check, threadData.lastRedirectMsg[1] \
                                         if threadData.lastRedirectMsg and threadData.lastRedirectMsg[0] == \
@@ -614,15 +612,11 @@ def checkSqlInjection(place, parameter, value):
             logger.warn(warnMsg)
 
         injection = checkFalsePositives(injection)
-
-        if not injection:
-            kb.vulnHosts.remove(conf.hostname)
     else:
         injection = None
 
     if injection:
         checkSuhosinPatch(injection)
-        checkFilteredChars(injection)
 
     return injection
 
@@ -658,7 +652,9 @@ def checkFalsePositives(injection):
 
     retVal = injection
 
-    if all(_ in (PAYLOAD.TECHNIQUE.BOOLEAN, PAYLOAD.TECHNIQUE.TIME, PAYLOAD.TECHNIQUE.STACKED) for _ in injection.data):
+    if len(injection.data) == 1 and any(map(lambda x: x in injection.data, [PAYLOAD.TECHNIQUE.BOOLEAN, PAYLOAD.TECHNIQUE.TIME, PAYLOAD.TECHNIQUE.STACKED]))\
+      or len(injection.data) == 2 and all(map(lambda x: x in injection.data, [PAYLOAD.TECHNIQUE.TIME, PAYLOAD.TECHNIQUE.STACKED])):
+#      or len(injection.data) == 1 and 'Generic' in injection.data.values()[0].title and not Backend.getIdentifiedDbms():
         pushValue(kb.injection)
 
         infoMsg = "checking if the injection point on %s " % injection.place
@@ -670,6 +666,8 @@ def checkFalsePositives(injection):
 
         kb.injection = injection
 
+        # Simple arithmetic operations which should show basic
+        # arithmetic ability of the backend if it's really injectable
         for i in xrange(conf.level):
             randInt1, randInt2, randInt3 = (_() for j in xrange(3))
 
@@ -690,21 +688,28 @@ def checkFalsePositives(injection):
             if PAYLOAD.TECHNIQUE.BOOLEAN not in injection.data:
                 checkBooleanExpression("%d=%d" % (randInt1, randInt2))
 
-            if checkBooleanExpression("%d=%d" % (randInt1, randInt3)):
+            if checkBooleanExpression("%d>%d" % (randInt1, randInt2)):
                 retVal = None
                 break
 
-            elif checkBooleanExpression("%d=%d" % (randInt3, randInt2)):
+            elif checkBooleanExpression("%d>%d" % (randInt2, randInt3)):
                 retVal = None
                 break
 
-            elif not checkBooleanExpression("%d=%d" % (randInt2, randInt2)):
+            elif not checkBooleanExpression("%d>%d" % (randInt3, randInt1)):
                 retVal = None
                 break
 
         if retVal is None:
             warnMsg = "false positive or unexploitable injection point detected"
             logger.warn(warnMsg)
+
+            if PAYLOAD.TECHNIQUE.BOOLEAN in injection.data:
+                if all(_.__name__ != "between" for _ in kb.tamperFunctions):
+                    warnMsg = "there is a possibility that the character '>' is "
+                    warnMsg += "filtered by the back-end server. You can try "
+                    warnMsg += "to rerun with '--tamper=between'"
+                    logger.warn(warnMsg)
 
         kb.injection = popValue()
 
@@ -716,50 +721,18 @@ def checkSuhosinPatch(injection):
     """
 
     if injection.place == PLACE.GET:
-        debugMsg = "checking for parameter length "
-        debugMsg += "constrainting mechanisms"
-        logger.debug(debugMsg)
-
         pushValue(kb.injection)
 
         kb.injection = injection
         randInt = randomInt()
 
         if not checkBooleanExpression("%d=%s%d" % (randInt, ' ' * SUHOSIN_MAX_VALUE_LENGTH, randInt)):
-            warnMsg = "parameter length constrainting "
+            warnMsg = "parameter length constraint "
             warnMsg += "mechanism detected (e.g. Suhosin patch). "
             warnMsg += "Potential problems in enumeration phase can be expected"
             logger.warn(warnMsg)
 
         kb.injection = popValue()
-
-def checkFilteredChars(injection):
-    debugMsg = "checking for filtered characters"
-    logger.debug(debugMsg)
-
-    pushValue(kb.injection)
-
-    kb.injection = injection
-    randInt = randomInt()
-
-    # all other techniques are already using parentheses in tests
-    if len(injection.data) == 1 and PAYLOAD.TECHNIQUE.BOOLEAN in injection.data:
-        if not checkBooleanExpression("(%d)=%d" % (randInt, randInt)):
-            warnMsg = "it appears that some non-alphanumeric characters (i.e. ()) are "
-            warnMsg += "filtered by the back-end server. There is a strong "
-            warnMsg += "possibility that sqlmap won't be able to properly "
-            warnMsg += "exploit this vulnerability"
-            logger.warn(warnMsg)
-
-    # inference techniques depend on character '>'
-    if not any(_ in injection.data for _ in (PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.QUERY)):
-        if not checkBooleanExpression("%d>%d" % (randInt+1, randInt)):
-            warnMsg = "it appears that the character '>' is "
-            warnMsg += "filtered by the back-end server. You are strongly "
-            warnMsg += "advised to rerun with the '--tamper=between'"
-            logger.warn(warnMsg)
-
-    kb.injection = popValue()
 
 def heuristicCheckSqlInjection(place, parameter):
     if kb.nullConnection:
@@ -1096,10 +1069,7 @@ def checkWaf():
         conf.parameters[PLACE.GET] = "" if not conf.parameters.get(PLACE.GET) else conf.parameters[PLACE.GET] + "&"
         conf.parameters[PLACE.GET] += "%s=%d %s" % (randomStr(), randomInt(), IDS_WAF_CHECK_PAYLOAD)
 
-        try:
-            falseResult = Request.queryPage()
-        except SqlmapConnectionException:
-            falseResult = None
+        falseResult = Request.queryPage()
 
         if not falseResult:
             retVal = True
@@ -1260,6 +1230,9 @@ def checkConnection(suppressOutput=False):
             kb.errorIsNone = True
 
     except SqlmapConnectionException, errMsg:
+        errMsg = getUnicode(errMsg)
+        logger.critical(errMsg)
+
         if conf.ipv6:
             warnMsg = "check connection to a provided "
             warnMsg += "IPv6 address with a tool like ping6 "
@@ -1269,9 +1242,6 @@ def checkConnection(suppressOutput=False):
             singleTimeWarnMessage(warnMsg)
 
         if any(code in kb.httpErrorCodes for code in (httplib.NOT_FOUND, )):
-            errMsg = getUnicode(errMsg)
-            logger.critical(errMsg)
-
             if conf.multipleTargets:
                 return False
 

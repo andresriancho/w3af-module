@@ -33,12 +33,6 @@ from w3af.core.data.options.option_types import OUTPUT_FILE
 from w3af.core.data.options.option_list import OptionList
 
 
-REQUEST_HEADER_FMT = '=' * 40 + 'Request %s - %s ' + '=' * 40 + '\n'
-RESPONSE_HEADER_FMT = '\n' + '=' * 40 + 'Response %s - %s ' + '=' * 39 + '\n'
-LONG_LOG_FMT = '[%s - %s - %s] '
-SHORT_LOG_FMT = '[%s - %s] '
-
-
 class text_file(OutputPlugin):
     """
     Prints all messages to a text file.
@@ -55,6 +49,8 @@ class text_file(OutputPlugin):
         self.verbose = True
 
         # Internal variables
+        self._flush_counter = 0
+        self._flush_number = 10
         self._initialized = False
 
         # File handlers
@@ -77,12 +73,12 @@ class text_file(OutputPlugin):
             self._file = open(self._output_file_name, "w")
         except IOError, io:
             msg = 'Can\'t open report file "%s" for writing, error: %s.'
-            args = (os.path.abspath(self._output_file_name), io.strerror)
-            raise BaseFrameworkException(msg % args)
+            raise BaseFrameworkException(msg % (os.path.abspath(self._output_file_name),
+                                       io.strerror))
         except Exception, e:
             msg = 'Can\'t open report file "%s" for writing, error: %s.'
-            args = (os.path.abspath(self._output_file_name), e)
-            raise BaseFrameworkException(msg % args)
+            raise BaseFrameworkException(
+                msg % (os.path.abspath(self._output_file_name), e))
 
         try:
             # Images aren't ascii, so this file that logs every request/response,
@@ -90,12 +86,12 @@ class text_file(OutputPlugin):
             self._http = open(self._http_file_name, "wb")
         except IOError, io:
             msg = 'Can\'t open HTTP report file "%s" for writing, error: %s.'
-            args = (os.path.abspath(self._http_file_name), io.strerror)
-            raise BaseFrameworkException(msg % args)
+            raise BaseFrameworkException(msg % (os.path.abspath(self._http_file_name),
+                                       io.strerror))
         except Exception, e:
             msg = 'Can\'t open HTTP report file "%s" for writing, error: %s.'
-            args = (os.path.abspath(self._http_file_name), e)
-            raise BaseFrameworkException(msg % args)
+            raise BaseFrameworkException(
+                msg % (os.path.abspath(self._http_file_name), e))
 
     def _write_to_file(self, msg):
         """
@@ -146,18 +142,21 @@ class text_file(OutputPlugin):
             self._init()
 
         to_print = str(message)
-        if new_line:
+        if new_line == True:
             to_print += '\n'
 
         now = time.localtime(time.time())
         the_time = time.strftime("%c", now)
 
         if self._show_caller:
-            timestamp = LONG_LOG_FMT % (the_time, log_type, self.get_caller())
+            timestamp = '[%s - %s - %s] ' % (
+                the_time, log_type, self.get_caller())
         else:
-            timestamp = SHORT_LOG_FMT % (the_time, log_type)
+            timestamp = '[%s - %s] ' % (the_time, log_type)
 
         self._write_to_file(timestamp + to_print)
+
+        self._flush()
 
     def debug(self, message, new_line=True):
         """
@@ -204,13 +203,13 @@ class text_file(OutputPlugin):
         take an action for the enabled plugins and their configuration. Usually,
         write the info to a file or print it somewhere.
 
-        :param plugins_dict: A dict with all the plugin types and the enabled
+        :param pluginsDict: A dict with all the plugin types and the enabled
                                 plugins for that type of plugin.
-        :param options_dict: A dict with the options for every plugin.
+        :param optionsDict: A dict with the options for every plugin.
         """
         now = time.localtime(time.time())
         the_time = time.strftime("%c", now)
-        timestamp = '[ %s - Enabled plugins ] ' % the_time
+        timestamp = '[ ' + the_time + ' - Enabled plugins ] '
 
         to_print = ''
 
@@ -228,6 +227,20 @@ class text_file(OutputPlugin):
         to_print = to_print.replace('\n', '\n' + timestamp) + '\n'
 
         self._write_to_file(timestamp + to_print)
+
+    def _flush(self):
+        """
+        textfile.flush is called every time a message is sent to this plugin.
+        self._file.flush() is called every self._flush_number
+        """
+        if self._flush_counter % self._flush_number == 0:
+            #   TODO: Remove this if I discover that it wasn't really needed.
+            #   I just commented this because after some profiling I found that
+            #   the file flushing takes some considerable time that I want to use for
+            #   some other more interesting things :)
+            #
+            #self._file.flush()
+            pass
 
     def end(self):
         if self._http is not None:
@@ -268,7 +281,8 @@ class text_file(OutputPlugin):
         ol.add(o)
 
         d = 'File name where this plugin will write HTTP requests and responses'
-        o = opt_factory('http_output_file', self._http_file_name, d, OUTPUT_FILE)
+        o = opt_factory(
+            'http_output_file', self._http_file_name, d, OUTPUT_FILE)
         ol.add(o)
 
         return ol
@@ -282,15 +296,18 @@ class text_file(OutputPlugin):
         now = time.localtime(time.time())
         the_time = time.strftime("%c", now)
 
-        request_hdr = REQUEST_HEADER_FMT % (response.id, the_time)
-        self._write_to_HTTP_log(request_hdr)
+        msg = '=' * 40 + 'Request ' + str(response.id) + ' - ' + \
+            the_time + '=' * 40 + '\n'
+        self._write_to_HTTP_log(msg)
         self._write_to_HTTP_log(request.dump())
         
-        response_hdr = RESPONSE_HEADER_FMT % (response.id, the_time)
-        self._write_to_HTTP_log(response_hdr)
+        msg2 = '\n' + '=' * 40 + 'Response ' + str(
+            response.id) + ' - ' + the_time + '=' * 39 + '\n'
+        self._write_to_HTTP_log(msg2)
         self._write_to_HTTP_log(response.dump())
 
-        self._write_to_HTTP_log('\n' + '=' * (len(request_hdr) - 1) + '\n')
+        self._write_to_HTTP_log('\n' + '=' * (len(msg) - 1) + '\n')
+        self._http.flush()
 
     def get_long_desc(self):
         """

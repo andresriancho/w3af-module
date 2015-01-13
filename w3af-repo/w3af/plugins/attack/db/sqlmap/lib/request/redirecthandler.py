@@ -8,8 +8,6 @@ See the file 'doc/COPYING' for copying permission
 import urllib2
 import urlparse
 
-from StringIO import StringIO
-
 from lib.core.data import conf
 from lib.core.data import kb
 from lib.core.data import logger
@@ -120,12 +118,7 @@ class SmartRedirectHandler(urllib2.HTTPRedirectHandler):
             req.headers[HTTP_HEADER.HOST] = getHostHeader(redurl)
             if headers and HTTP_HEADER.SET_COOKIE in headers:
                 req.headers[HTTP_HEADER.COOKIE] = headers[HTTP_HEADER.SET_COOKIE].split(conf.cookieDel or DEFAULT_COOKIE_DELIMITER)[0]
-            try:
-                result = urllib2.HTTPRedirectHandler.http_error_302(self, req, fp, code, msg, headers)
-            except:
-                redurl = None
-                result = fp
-                fp.read = StringIO("").read
+            result = urllib2.HTTPRedirectHandler.http_error_302(self, req, fp, code, msg, headers)
         else:
             result = fp
 
