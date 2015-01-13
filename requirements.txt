@@ -1,4 +1,4 @@
-setuptools==3.6
+setuptools==11.3.1
 setuptools_git==1.0
 
 nose-exclude==0.1.10
