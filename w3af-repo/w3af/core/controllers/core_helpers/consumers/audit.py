@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 import w3af.core.controllers.output_manager as om
 
-from w3af.core.controllers.misc.decorators import retry
 from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.core_helpers.consumers.base_consumer import (BaseConsumer,
                                                                         task_decorator)
@@ -54,7 +53,6 @@ class audit(BaseConsumer):
                 self.handle_exception('audit', plugin.get_name(),
                                       'plugin.end()', e)
 
-    @retry(3)
     def get_original_response(self, fuzzable_request):
         plugin = self._consumer_plugins[0]
         return plugin.get_original_response(fuzzable_request)
@@ -98,7 +96,7 @@ class audit(BaseConsumer):
                                         (plugin, fuzzable_request, orig_resp))
 
     @task_decorator
-    def _audit(self, plugin, fuzzable_request, orig_resp):
+    def _audit(self, function_id, plugin, fuzzable_request, orig_resp):
         """
         Since threadpool's apply_async runs the callback only when the call to
         this method ends without any exceptions, it is *very important* to

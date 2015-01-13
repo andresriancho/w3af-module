@@ -85,7 +85,8 @@ class analyze_cookies(GrepPlugin):
                                                   cookie_object,
                                                   cookie_header_value)
 
-    def _collect_cookies(self, request, response, cookie_object, cookie_header_value):
+    def _collect_cookies(self, request, response, cookie_object,
+                         cookie_header_value):
         """
         Store (unique) cookies in the KB for later analysis.
         """
@@ -154,7 +155,7 @@ class analyze_cookies(GrepPlugin):
             cookie_object.load(cookie_header_value)
         except Cookie.CookieError:
             desc = 'The remote Web application sent a cookie with an' \
-                  ' incorrect format: "%s" that does NOT respect the RFC.'
+                   ' incorrect format: "%s" that does NOT respect the RFC.'
             desc = desc % cookie_header_value
             
             i = Vuln('Invalid cookie', desc,
@@ -174,12 +175,12 @@ class analyze_cookies(GrepPlugin):
                                  cookie_header_value):
         """
         In this method I call all the other methods that perform a specific
-        analysis of the already catched cookie.
+        analysis of the already caught cookie.
         """
-        self._secure_over_http(
-            request, response, cookie_obj, cookie_header_value)
-        self._not_secure_over_https(
-            request, response, cookie_obj, cookie_header_value)
+        self._secure_over_http(request, response, cookie_obj,
+                               cookie_header_value)
+        self._not_secure_over_https(request, response, cookie_obj,
+                                    cookie_header_value)
 
         fingerprinted = self._match_cookie_fingerprint(request, response,
                                                        cookie_obj)
@@ -205,10 +206,10 @@ class analyze_cookies(GrepPlugin):
         if not self.HTTPONLY_RE.search(cookie_header_value):
             
             vuln_severity = severity.MEDIUM if fingerprinted else severity.LOW
-            desc = 'A cookie without the HttpOnly flag was sent when requesting' \
-                   ' "%s". The HttpOnly flag prevents potential intruders from' \
-                   ' accessing the cookie value through Cross-Site Scripting' \
-                   ' attacks.'
+            desc = 'A cookie without the HttpOnly flag was sent when ' \
+                   ' requesting "%s". The HttpOnly flag prevents potential' \
+                   ' intruders from accessing the cookie value through' \
+                   ' Cross-Site Scripting attacks.'
             desc = desc % response.get_url()
             
             v = Vuln('Cookie without HttpOnly', desc,
@@ -232,13 +233,13 @@ class analyze_cookies(GrepPlugin):
         for cookie in kb.kb.get('analyze_cookies', 'cookies'):
             if cookie.get_url().get_protocol().lower() == 'https' and \
             request.get_url().get_domain() == cookie.get_url().get_domain():
-                
+
                 # The cookie was sent using SSL, I'll check if the current
                 # request, is using these values in the POSTDATA / QS / COOKIE
                 for key in cookie['cookie-object'].keys():
-                    
+
                     value = cookie['cookie-object'][key].value
-                    
+
                     # This if is to create less false positives
                     if len(value) > 6 and value in request.dump():
 
@@ -286,7 +287,8 @@ class analyze_cookies(GrepPlugin):
 
         return False
 
-    def _secure_over_http(self, request, response, cookie_obj, cookie_header_value):
+    def _secure_over_http(self, request, response, cookie_obj,
+                          cookie_header_value):
         """
         Checks if a cookie marked as secure is sent over http.
 
@@ -327,9 +329,8 @@ class analyze_cookies(GrepPlugin):
                    ' "secure" flag.'
             desc = desc % response.get_url()
             
-            v = Vuln('Secure cookie over HTTP', desc,
-                     severity.HIGH, response.id, self.get_name())
-
+            v = Vuln('Secure cookie over HTTP', desc, severity.HIGH,
+                     response.id, self.get_name())
             v.set_url(response.get_url())
 
             self._set_cookie_to_rep(v, cobj=cookie_obj)
@@ -372,21 +373,30 @@ class analyze_cookies(GrepPlugin):
         This method is called when the plugin wont be used anymore.
         """
         cookies = kb.kb.get('analyze_cookies', 'cookies')
-
         tmp = list(set([(c['cookie-string'], c.get_url()) for c in cookies]))
+
         res_dict, item_idx = group_by_min_key(tmp)
-        if not item_idx:
+
+        if item_idx:
             # Grouped by URLs
-            msg = 'The URL: "%s" sent these cookies:'
+            msg = u'The URL: "%s" sent these cookies:'
         else:
             # Grouped by cookies
-            msg = 'The cookie: "%s" was sent by these URLs:'
+            msg = u'The cookie: "%s" was sent by these URLs:'
 
         for k in res_dict:
             to_print = msg % k
 
             for i in res_dict[k]:
-                to_print += '\n- ' + i
+                # Switch depending on the type of grouping returned by
+                # group_by_min_key
+                if isinstance(i, unicode):
+                    # it's the cookie as string
+                    to_print += u'\n- ' + i
+                else:
+                    # it's a URL
+                    to_print += u'\n- ' + i.url_string.decode('utf-8',
+                                                              errors='ignore')
 
             om.out.information(to_print)
 

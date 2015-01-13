@@ -19,10 +19,13 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
-import __builtin__ #magic
+#magic
+import __builtin__
+
 import hashlib
 import cPickle
 
+from w3af.core.data.misc.cpickle_dumps import cpickle_dumps
 from w3af.core.data.db.disk_item import DiskItem
 from w3af.core.data.db.dbms import get_default_temp_db_instance
 from w3af.core.data.fuzzer.utils import rand_alpha
@@ -55,10 +58,11 @@ class DiskList(object):
 
     :author: Andres Riancho (andres.riancho@gmail.com)
     """
-    def __init__(self):
+    def __init__(self, table_prefix=None):
         self.db = get_default_temp_db_instance()
 
-        self.table_name = rand_alpha(30)
+        prefix = '' if table_prefix is None else ('%s_' % table_prefix)
+        self.table_name = 'disk_list_' + prefix + rand_alpha(30)
 
         # Create table
         # DO NOT add the AUTOINCREMENT flag to the table creation since that
@@ -99,7 +103,7 @@ class DiskList(object):
                  way.
         """
         if type(obj).__name__ in dir(__builtin__):
-            return cPickle.dumps(obj)
+            return cpickle_dumps(obj)
 
         elif isinstance(obj, DiskItem):
             result = ''
@@ -136,7 +140,7 @@ class DiskList(object):
         :param value: The value to append.
         """
         assert self._state == OPEN
-        pickled_obj = cPickle.dumps(value)
+        pickled_obj = cpickle_dumps(value)
         eq_attrs = self._get_eq_attrs_values(value)
         t = (eq_attrs, pickled_obj)
         

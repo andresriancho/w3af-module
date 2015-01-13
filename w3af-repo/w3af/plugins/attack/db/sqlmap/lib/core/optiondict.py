@@ -19,9 +19,11 @@ optDict = {
                                "sessionFile":       "string",
                                "googleDork":        "string",
                                "configFile":        "string",
+                               "sitemapUrl":        "string",
                              },
 
             "Request":       {
+                               "method":            "string",
                                "data":              "string",
                                "paramDel":          "string",
                                "cookie":            "string",
@@ -51,6 +53,8 @@ optDict = {
                                "safUrl":            "string",
                                "saFreq":            "integer",
                                "skipUrlEncode":     "boolean",
+                               "csrfToken":         "string",
+                               "csrfUrl":           "string",
                                "forceSSL":          "boolean",
                                "hpp":               "boolean",
                                "evalCode":          "string",

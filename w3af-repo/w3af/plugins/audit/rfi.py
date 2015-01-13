@@ -44,6 +44,8 @@ from w3af.core.data.fuzzer.utils import rand_alnum
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.kb.vuln import Vuln
 
+CONFIG_OK = 'Ok'
+
 
 class rfi(AuditPlugin):
     """
@@ -54,9 +56,13 @@ class rfi(AuditPlugin):
     CONFIG_ERROR_MSG = 'audit.rfi plugin needs to be correctly configured to' \
                        ' use. Please set valid values for local address (eg.' \
                        ' 10.5.2.5) and port (eg. 44449), or use the official' \
-                       ' w3af site as the target server for remote inclusions.'
+                       ' w3af site as the target server for remote inclusions.'\
+                       ' The configuration error is: "%s"'
 
     RFI_TEST_URL = 'http://w3af.org/rfi.html'
+
+    RFI_TOKEN_1 = '8PcokTUkv'
+    RFI_TOKEN_2 = 'oudVjYpIm'
 
     RFI_ERRORS = ('php_network_getaddresses: getaddrinfo',
                   'failed to open stream: Connection refused in'
@@ -69,7 +75,6 @@ class rfi(AuditPlugin):
 
         # Internal variables
         self._error_reported = False
-        # FIXME: self._vulns and self._report_vulns are not thread-safe
         self._vulns = []
 
         # User configured parameters
@@ -89,7 +94,9 @@ class rfi(AuditPlugin):
             self._w3af_site_test_inclusion(freq, orig_response)
 
         # Sanity check required for #2 technique
-        if not self._correctly_configured() and not self._error_reported:
+        config_ok, config_message = self._correctly_configured()
+
+        if not config_ok and not self._error_reported:
             # Report error to the user only once
             self._error_reported = True
             om.out.error(self.CONFIG_ERROR_MSG)
@@ -164,21 +171,26 @@ class rfi(AuditPlugin):
         if listen_address and listen_port:
             with self._plugin_lock:
                 # If we have an active instance then we're OK!
-                if webserver.is_running(listen_address,
-                                        listen_port):
-                    return True
+                if webserver.is_running(listen_address, listen_port):
+                    return True, CONFIG_OK
 
                 # Test if it's possible to bind the address
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                bind_args = (listen_address, listen_port)
                 try:
-                    s.bind((listen_address, listen_port))
-                except socket.error:
-                    return False
+                    s.bind(bind_args)
+                except socket.error, se:
+                    msg = 'Failed to bind to address %s:%s, error: %s'
+                    fmt_args = list(bind_args)
+                    fmt_args.append(se)
+                    return False, msg % tuple(fmt_args)
                 finally:
                     s.close()
                     del s
-                return True
+                return True, CONFIG_OK
+
+        return False, 'Listen address and port need to be configured'
 
     def _local_test_inclusion(self, freq, orig_response):
         """
@@ -194,7 +206,7 @@ class rfi(AuditPlugin):
         #   - The listen address is private and the target address is private
         #   - The listen address is public and the target address is public
         #
-        if self._listen_address == '':
+        if not self._listen_address:
             return
 
         is_listen_priv = is_private_site(self._listen_address)
@@ -364,8 +376,8 @@ class rfi(AuditPlugin):
         """
         with self._plugin_lock:
             # First, generate the php file to be included.
-            rfi_result_part_1 = rand1 = rand_alnum(9)
-            rfi_result_part_2 = rand2 = rand_alnum(9)
+            rfi_result_part_1 = rand1 = self.RFI_TOKEN_1
+            rfi_result_part_2 = rand2 = self.RFI_TOKEN_2
             rfi_result = rand1 + rand2
 
             filename = rand_alnum(8)
@@ -374,7 +386,6 @@ class rfi(AuditPlugin):
             php_jsp_code += '<%% out.print("%(p1)s"); out.print("%(p2)s"); %%>'
             php_jsp_code = php_jsp_code % {'p1': rfi_result_part_1,
                                            'p2': rfi_result_part_2}
-
 
             # Define the required parameters
             netloc = self._listen_address + ':' + str(self._listen_port)
@@ -424,8 +435,10 @@ class rfi(AuditPlugin):
         self._listen_port = options_list['listen_port'].get_value()
         self._use_w3af_site = options_list['use_w3af_site'].get_value()
 
-        if not self._correctly_configured() and not self._use_w3af_site:
-            raise BaseFrameworkException(self.CONFIG_ERROR_MSG)
+        config_ok, config_message = self._correctly_configured()
+
+        if not config_ok and not self._use_w3af_site:
+            raise BaseFrameworkException(self.CONFIG_ERROR_MSG % config_message)
 
     def get_long_desc(self):
         """

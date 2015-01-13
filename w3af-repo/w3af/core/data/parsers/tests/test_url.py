@@ -35,7 +35,7 @@ from w3af.core.data.dc.urlencoded_form import URLEncodedForm
 class TestURLParser(unittest.TestCase):
 
     #
-    #    Object instansiation test
+    #    Object instantiation test
     #
     def test_simplest_url(self):
         u = URL('http://w3af.com/foo/bar.txt')
@@ -300,7 +300,7 @@ class TestURLParser(unittest.TestCase):
         encode it.
         """
         u = URL('http://w3af.com/')
-        self.assertRaises(ValueError, u.url_join, "d:url.html?id=13&subid=3")
+        self.assertRaises(ValueError, u.url_join, "d:url.html")
 
     def test_url_join_case07(self):
         u = URL('http://w3af.com/')
@@ -616,7 +616,6 @@ class TestURLParser(unittest.TestCase):
         self.assertEqual(URL("http://aaa:443").get_net_location(),
                          'aaa:443')
         
-
     #
     #    from_url
     #
@@ -964,3 +963,12 @@ class TestURLParser(unittest.TestCase):
 
         cPickle.dumps(u)
         cPickle.dumps(domain_path)
+
+    def test_can_be_pickled_with_qs(self):
+        # Pickle a URL object that contains a query string
+        u = URL('http://www.w3af.com/?id=1')
+        cPickle.dumps(u)
+
+    def test_copy(self):
+        u = URL('http://www.w3af.com/?id=1&id=2')
+        self.assertEqual(u, u.copy())

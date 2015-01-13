@@ -1,5 +1,5 @@
 """
-plugins.py
+plugin.py
 
 Copyright 2006 Andres Riancho
 
@@ -23,14 +23,19 @@ import sys
 import threading
 import Queue
 
+from itertools import repeat
+from tblib.decorators import Error
+
 import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.controllers.output_manager as om
 
-from w3af.core.data.options.option_list import OptionList
 from w3af.core.controllers.configurable import Configurable
 from w3af.core.controllers.threads.threadpool import return_args
-from w3af.core.controllers.exceptions import ScanMustStopOnUrlError
+from w3af.core.controllers.exceptions import HTTPRequestException
 from w3af.core.controllers.misc.decorators import memoized
+from w3af.core.controllers.threads.decorators import apply_with_return_error
+from w3af.core.data.options.option_list import OptionList
+from w3af.core.data.url.helpers import new_no_content_resp
 
 
 class Plugin(Configurable):
@@ -48,7 +53,7 @@ class Plugin(Configurable):
 
     def __init__(self):
         """
-        Create some generic attributes that are going to be used by most plugins.
+        Create some generic attributes that are going to be used by most plugins
         """
         self._uri_opener = None
         self.worker_pool = None
@@ -64,7 +69,7 @@ class Plugin(Configurable):
         """
         self.worker_pool = worker_pool
 
-    def set_url_opener(self, urlOpener):
+    def set_url_opener(self, url_opener):
         """
         This method should not be overwritten by any plugin (but you are free
         to do it, for example a good idea is to rewrite this method to change
@@ -78,13 +83,14 @@ class Plugin(Configurable):
 
         :return: No value is returned.
         """
-        self._uri_opener = UrlOpenerProxy(urlOpener, self)
+        self._uri_opener = UrlOpenerProxy(url_opener, self)
 
     def set_options(self, options_list):
         """
         Sets the Options given on the OptionList to self. The options are the
         result of a user entering some data on a window that was constructed
-        using the options that were retrieved from the plugin using get_options()
+        using the options that were retrieved from the plugin using
+        get_options()
 
         This method must be implemented in every plugin that wishes to have user
         configurable options.
@@ -154,7 +160,7 @@ class Plugin(Configurable):
     def end(self):
         """
         This method is called by w3afCore to let the plugin know that it wont
-        be used anymore. This is helpfull to do some final tests, free some
+        be used anymore. This is helpful to do some final tests, free some
         structures, etc.
         """
         pass
@@ -166,28 +172,14 @@ class Plugin(Configurable):
     def get_name(self):
         return self.__class__.__name__
 
-    def handle_url_error(self, url_error):
-        """
-        Handle UrlError exceptions raised when requests are made.
-        Subclasses should redefine this method for a more refined
-        behavior and must respect the return value format.
-
-        :param url_error: ScanMustStopOnUrlError exception instance
-        :return: (stopbubbling, result). The 1st is a boolean value
-            that indicates the caller if the original error should
-            stop bubbling or not. The 2nd is the result to be
-            returned by the caller. Note that only makes sense
-            when `stopbubbling` is True.
-        """
-        om.out.error('There was an error while requesting "%s". Reason: %s' %
-                     (url_error.req.get_full_url(), url_error.msg))
-        return False, None
-
     def _send_mutants_in_threads(self, func, iterable, callback, **kwds):
         """
         Please note that this method blocks from the caller's point of view
         but performs all the HTTP requests in parallel threads.
         """
+        imap_unordered = self.worker_pool.imap_unordered
+        awre = apply_with_return_error
+
         # You can use this code to debug issues that happen in threads, by
         # simply not using them:
         #
@@ -197,10 +189,38 @@ class Plugin(Configurable):
         #
         # Now the real code:
         func = return_args(func, **kwds)
-        imap_unordered = self.worker_pool.imap_unordered
+        args = zip(repeat(func), iterable)
 
-        for (mutant,), http_response in imap_unordered(func, iterable):
-            callback(mutant, http_response)
+        for result in imap_unordered(awre, args):
+            # re-raise the thread exception in the main thread with this method
+            # so we get a nice traceback instead of things like the ones we see
+            # in https://github.com/andresriancho/w3af/issues/7286
+            if isinstance(result, Error):
+                result.reraise()
+            else:
+                (mutant,), http_response = result
+                callback(mutant, http_response)
+
+    def handle_url_error(self, uri, http_exception):
+        """
+        Handle UrlError exceptions raised when requests are made.
+        Subclasses should redefine this method for a more refined
+        behavior and must respect the return value format.
+
+        :param http_exception: HTTPRequestException exception instance
+
+        :return: A tuple containing:
+            * re_raise: Boolean value that indicates the caller if the original
+                        exception should be re-raised after this error handling
+                        method.
+
+            * result: The result to be returned to the caller. This only makes
+                      sense if re_raise is False.
+        """
+        msg = 'The %s plugin got an error while requesting "%s". Reason: "%s"'
+        args = (self.get_name(), uri, http_exception)
+        om.out.error(msg % args)
+        return False, new_no_content_resp(uri, add_id=True)
 
 
 class UrlOpenerProxy(object):
@@ -217,13 +237,34 @@ class UrlOpenerProxy(object):
         def meth(*args, **kwargs):
             try:
                 return attr(*args, **kwargs)
-            except ScanMustStopOnUrlError, w3aferr:
-                stopbubbling, result = \
-                    self._plugin_inst.handle_url_error(w3aferr)
-                if not stopbubbling:
+            except HTTPRequestException, hre:
+                #
+                # We get here when **one** HTTP request fails. When more than
+                # one exception fails the URL opener will raise a different
+                # type of exception (not a subclass of HTTPRequestException)
+                # and that one will bubble up to w3afCore/strategy/etc.
+                #
+                arg1 = args[0]
+                if hasattr(arg1, 'get_uri'):
+                    # Mutants and fuzzable requests enter here
+                    uri = arg1.get_uri()
+                else:
+                    # It was a URL instance
+                    uri = arg1
+
+                re_raise, result = self._plugin_inst.handle_url_error(uri, hre)
+
+                # By default we do NOT re-raise, we just return a 204-no content
+                # response and hope for the best.
+                if re_raise:
                     exc_info = sys.exc_info()
                     raise exc_info[0], exc_info[1], exc_info[2]
+
                 return result
 
         attr = getattr(self._url_opener, name)
-        return meth if callable(attr) else attr
+
+        if callable(attr):
+            return meth
+        else:
+            return attr

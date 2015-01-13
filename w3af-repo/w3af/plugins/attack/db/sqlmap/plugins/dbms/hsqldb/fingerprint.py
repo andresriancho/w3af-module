@@ -77,11 +77,11 @@ class Fingerprint(GenericFingerprint):
         version 1.8.0.4 Added org.hsqldbdb.Library function, getDatabaseFullProductVersion to return the
                         full version string, including the 4th digit (e.g 1.8.0.4).
         version 1.7.2 CASE statements added and INFORMATION_SCHEMA
-         
+
         """
 
         if not conf.extensiveFp and (Backend.isDbmsWithin(HSQLDB_ALIASES) \
-           or conf.dbms in HSQLDB_ALIASES) and Backend.getVersion() and \
+           or (conf.dbms or "").lower() in HSQLDB_ALIASES) and Backend.getVersion() and \
            Backend.getVersion() != UNKNOWN_DBMS_VERSION:
             v = Backend.getVersion().replace(">", "")
             v = v.replace("=", "")
@@ -134,7 +134,7 @@ class Fingerprint(GenericFingerprint):
 
             return True
         else:
-            warnMsg = "the back-end DBMS is not %s or is < 1.7.2" % DBMS.HSQLDB
+            warnMsg = "the back-end DBMS is not %s or version is < 1.7.2" % DBMS.HSQLDB
             logger.warn(warnMsg)
 
             return False

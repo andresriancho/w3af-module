@@ -11,8 +11,32 @@
              xsi:noNamespaceSchemaLocation="wp_versions.xsd">
 
   <file src="readme.html">
+    <hash md5="321aad4ba63043f888cb072cedf9ef78">
+      <version>4.1</version>
+    </hash>
+    <hash md5="70cdb035f3dd51138d5997eaa4d93798">
+      <version>4.0.1</version>
+    </hash>
+    <hash md5="f00855fca05f89294d0fcee6bebea64a">
+      <version>4.0</version>
+    </hash>
+    <hash md5="62a78170a740a4460a8d25e00c1839f5">
+      <version>3.9.3</version>
+    </hash>
+    <hash md5="dfb2d2be1648ee220bf9bd3c03694ed8">
+      <version>3.9.2</version>
+    </hash>
+    <hash md5="cdbf9b18e3729b3553437fc4e9b6baad">
+      <version>3.9.1</version>
+    </hash>
     <hash md5="84b54c54aa48ae72e633685c17e67457">
       <version>3.9</version>
+    </hash>
+    <hash md5="4821f33f92f597623a524a34f3be4651">
+      <version>3.8.5</version>
+    </hash>
+    <hash md5="fb73e4ab558adc3948adf2653e28d880">
+      <version>3.8.4</version>
     </hash>
     <hash md5="c6de8fc70a18be7e5c36198cd0f99a64">
       <version>3.8.3</version>
@@ -25,6 +49,12 @@
     </hash>
     <hash md5="38ee273095b8f25b9ffd5ce5018fc4f0">
       <version>3.8</version>
+    </hash>
+    <hash md5="61f1e5fbbd9ecb69c90cb96a19160ae5">
+      <version>3.7.5</version>
+    </hash>
+    <hash md5="dc09e38cb48fbbec5b5f990513b491e4">
+      <version>3.7.4</version>
     </hash>
     <hash md5="813e06052daa0692036e60d76d7141d3">
       <version>3.7.3</version>
@@ -62,15 +92,27 @@
   </file>
 
   <file src="wp-includes/css/buttons-rtl.css">
-    <hash md5="d24d1d1eb3a4b9a4998e4df1761f8b9e">
-      <version>3.9</version>
-    </hash>
     <hash md5="71c13ab1693b45fb3d7712e540c4dfe0">
       <version>3.8</version>
     </hash>
   </file>
 
   <file src="wp-includes/js/tinymce/wp-tinymce.js.gz">
+    <hash md5="66ff6b408c58c3207ff4b20e75ec5e68">
+      <version>4.1</version>
+    </hash>
+    <hash md5="3966bc13b65d9487dc6772c615b05cd9">
+      <version>4.0.1</version>
+    </hash>
+    <hash md5="21f15ceb6c245e6dc0edc510761049ba">
+      <version>4.0</version>
+    </hash>
+    <hash md5="f094cea5fe2b1c870c662ff4794c589f">
+      <version>3.9.3</version>
+    </hash>
+    <hash md5="1d52314b1767c557b7232ae192c80318">
+      <version>3.9</version>
+    </hash>
     <!-- Note: 3.7.1 has no unique file (the hash below is the same than the 3.7.2) -->
     <hash md5="44d281b0d84cc494e2b095a6d2202f4d">
       <version>3.7.1</version>

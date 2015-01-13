@@ -6,6 +6,8 @@ See the file 'doc/COPYING' for copying permission
 """
 
 import os
+import re
+import shlex
 import sys
 
 from optparse import OptionError
@@ -17,13 +19,22 @@ from lib.core.common import checkDeprecatedOptions
 from lib.core.common import checkSystemEncoding
 from lib.core.common import expandMnemonics
 from lib.core.common import getUnicode
+from lib.core.data import cmdLineOptions
+from lib.core.data import conf
 from lib.core.data import logger
 from lib.core.defaults import defaults
+from lib.core.enums import AUTOCOMPLETE_TYPE
+from lib.core.exception import SqlmapShellQuitException
+from lib.core.exception import SqlmapSyntaxException
 from lib.core.settings import BASIC_HELP_ITEMS
 from lib.core.settings import DUMMY_URL
 from lib.core.settings import IS_WIN
 from lib.core.settings import MAX_HELP_OPTION_LENGTH
 from lib.core.settings import VERSION_STRING
+from lib.core.shell import autoCompletion
+from lib.core.shell import clearHistory
+from lib.core.shell import loadHistory
+from lib.core.shell import saveHistory
 
 def cmdLineParser():
     """
@@ -32,7 +43,7 @@ def cmdLineParser():
 
     checkSystemEncoding()
 
-    _ = os.path.normpath(sys.argv[0])
+    _ = getUnicode(os.path.basename(sys.argv[0]), encoding=sys.getfilesystemencoding())
 
     usage = "%s%s [options]" % ("python " if not IS_WIN else "", \
             "\"%s\"" % _ if " " in _ else _)
@@ -63,6 +74,8 @@ def cmdLineParser():
         target.add_option("-l", dest="logFile", help="Parse target(s) from Burp "
                           "or WebScarab proxy log file")
 
+        target.add_option("-x", dest="sitemapUrl", help="Parse target(s) from remote sitemap(.xml) file")
+
         target.add_option("-m", dest="bulkFile", help="Scan multiple targets given "
                           "in a textual file ")
 
@@ -78,6 +91,9 @@ def cmdLineParser():
         # Request options
         request = OptionGroup(parser, "Request", "These options can be used "
                               "to specify how to connect to the target URL")
+
+        request.add_option("--method", dest="method",
+                           help="Force usage of given HTTP method (e.g. PUT)")
 
         request.add_option("--data", dest="data",
                            help="Data string to be sent through POST")
@@ -124,6 +140,9 @@ def cmdLineParser():
 
         request.add_option("--auth-private", dest="authPrivate",
                            help="HTTP authentication PEM private key file")
+
+        request.add_option("--ignore-401", dest="ignore401", action="store_true",
+                          help="Ignore HTTP Error 401 (Unauthorized)")
 
         request.add_option("--proxy", dest="proxy",
                            help="Use a proxy to connect to the target URL")
@@ -175,6 +194,12 @@ def cmdLineParser():
         request.add_option("--skip-urlencode", dest="skipUrlEncode",
                            action="store_true",
                            help="Skip URL encoding of payload data")
+
+        request.add_option("--csrf-token", dest="csrfToken",
+                           help="Parameter used to hold anti-CSRF token")
+
+        request.add_option("--csrf-url", dest="csrfUrl",
+                           help="URL address to visit to extract anti-CSRF token")
 
         request.add_option("--force-ssl", dest="forceSSL",
                            action="store_true",
@@ -449,7 +474,7 @@ def cmdLineParser():
         enumeration.add_option("--sql-file", dest="sqlFile",
                                help="Execute SQL statements from given file(s)")
 
-        # User-defined function options
+        # Brute force options
         brute = OptionGroup(parser, "Brute force", "These "
                           "options can be used to run brute force "
                           "checks")
@@ -691,6 +716,9 @@ def cmdLineParser():
                                   action="store_true",
                                   help="Conduct through tests only if positive heuristic(s)")
 
+        miscellaneous.add_option("--sqlmap-shell", dest="sqlmapShell", action="store_true",
+                            help="Prompt for an interactive sqlmap shell")
+
         miscellaneous.add_option("--wizard", dest="wizard",
                                   action="store_true",
                                   help="Simple wizard interface for beginner users")
@@ -712,9 +740,6 @@ def cmdLineParser():
                           help=SUPPRESS_HELP)
 
         parser.add_option("--force-dns", dest="forceDns", action="store_true",
-                          help=SUPPRESS_HELP)
-
-        parser.add_option("--ignore-401", dest="ignore401", action="store_true",
                           help=SUPPRESS_HELP)
 
         parser.add_option("--smoke-test", dest="smokeTest", action="store_true",
@@ -763,22 +788,76 @@ def cmdLineParser():
         option = parser.get_option("-h")
         option.help = option.help.capitalize().replace("this help", "basic help")
 
-        args = []
+        argv = []
+        prompt = False
         advancedHelp = True
 
         for arg in sys.argv:
-            args.append(getUnicode(arg, system=True))
+            argv.append(getUnicode(arg, encoding=sys.getfilesystemencoding()))
 
-        checkDeprecatedOptions(args)
+        checkDeprecatedOptions(argv)
+
+        prompt = "--sqlmap-shell" in argv
+
+        if prompt:
+            parser.usage = ""
+            cmdLineOptions.sqlmapShell = True
+
+            _ = ["x", "q", "exit", "quit", "clear"]
+
+            for option in parser.option_list:
+                _.extend(option._long_opts)
+                _.extend(option._short_opts)
+
+            for group in parser.option_groups:
+                for option in group.option_list:
+                    _.extend(option._long_opts)
+                    _.extend(option._short_opts)
+
+            autoCompletion(AUTOCOMPLETE_TYPE.SQLMAP, commands=_)
+
+            while True:
+                command = None
+
+                try:
+                    command = raw_input("sqlmap-shell> ").strip()
+                except (KeyboardInterrupt, EOFError):
+                    print
+                    raise SqlmapShellQuitException
+
+                if not command:
+                    continue
+                elif command.lower() == "clear":
+                    clearHistory()                    
+                    print "[i] history cleared"
+                    saveHistory(AUTOCOMPLETE_TYPE.SQLMAP)
+                elif command.lower() in ("x", "q", "exit", "quit"):
+                    raise SqlmapShellQuitException
+                elif command[0] != '-':
+                    print "[!] invalid option(s) provided"
+                    print "[i] proper example: '-u http://www.site.com/vuln.php?id=1 --banner'"
+                else:
+                    saveHistory(AUTOCOMPLETE_TYPE.SQLMAP)
+                    loadHistory(AUTOCOMPLETE_TYPE.SQLMAP)
+                    break
+
+            try:
+                for arg in shlex.split(command):
+                    argv.append(getUnicode(arg, encoding=sys.stdin.encoding))
+            except ValueError, ex:
+                raise SqlmapSyntaxException, "something went wrong during command line parsing ('%s')" % ex
 
         # Hide non-basic options in basic help case
-        for i in xrange(len(sys.argv)):
-            if sys.argv[i] == '-hh':
-                sys.argv[i] = '-h'
-            elif sys.argv[i] == '--version':
-                print VERSION_STRING
+        for i in xrange(len(argv)):
+            if argv[i] == "-hh":
+                argv[i] = "-h"
+            elif re.match(r"\A\d+!\Z", argv[i]) and argv[max(0, i - 1)] == "--threads" or re.match(r"\A--threads.+\d+!\Z", argv[i]):
+                argv[i] = argv[i][:-1]
+                conf.skipThreadCheck = True
+            elif argv[i] == "--version":
+                print VERSION_STRING.split('/')[-1]
                 raise SystemExit
-            elif sys.argv[i] == '-h':
+            elif argv[i] == "-h":
                 advancedHelp = False
                 for group in parser.option_groups[:]:
                     found = False
@@ -791,24 +870,27 @@ def cmdLineParser():
                         parser.option_groups.remove(group)
 
         try:
-            (args, _) = parser.parse_args(args)
+            (args, _) = parser.parse_args(argv)
+        except UnicodeEncodeError, ex:
+            print "\n[!] %s" % ex.object.encode("unicode-escape")
+            raise SystemExit
         except SystemExit:
-            if '-h' in sys.argv and not advancedHelp:
+            if "-h" in argv and not advancedHelp:
                 print "\n[!] to see full list of options run with '-hh'"
             raise
 
         # Expand given mnemonic options (e.g. -z "ign,flu,bat")
-        for i in xrange(len(sys.argv) - 1):
-            if sys.argv[i] == '-z':
-                expandMnemonics(sys.argv[i + 1], parser, args)
+        for i in xrange(len(argv) - 1):
+            if argv[i] == "-z":
+                expandMnemonics(argv[i + 1], parser, args)
 
         if args.dummy:
             args.url = args.url or DUMMY_URL
 
         if not any((args.direct, args.url, args.logFile, args.bulkFile, args.googleDork, args.configFile, \
             args.requestFile, args.updateAll, args.smokeTest, args.liveTest, args.wizard, args.dependencies, \
-            args.purgeOutput, args.pickledOptions)):
-            errMsg = "missing a mandatory option (-d, -u, -l, -m, -r, -g, -c, --wizard, --update, --purge-output or --dependencies), "
+            args.purgeOutput, args.pickledOptions, args.sitemapUrl)):
+            errMsg = "missing a mandatory option (-d, -u, -l, -m, -r, -g, -c, -x, --wizard, --update, --purge-output or --dependencies), "
             errMsg += "use -h for basic or -hh for advanced help"
             parser.error(errMsg)
 

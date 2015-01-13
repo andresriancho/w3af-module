@@ -39,7 +39,7 @@ from w3af.core.data.request.fuzzable_request import FuzzableRequest
 BACKDOOR_COLLECTION = {'input': {'value': ('run', 'send', 'exec', 'execute',
                                            'run cmd', 'execute command',
                                            'run command', 'list', 'connect'),
-                       'name': ('cmd', 'command')},
+                                 'name': ('cmd', 'command')},
                        'form': {'enctype': ('multipart/form-data',)}}
 
 # List of known offensive words.
@@ -93,14 +93,16 @@ class find_backdoors(CrawlPlugin):
         """
         :yield: lines from the web shell DB
         """
-        for line in file(self.WEBSHELL_DB).readline():
+        for line in file(self.WEBSHELL_DB):
+            line = line.strip()
+
             if line.startswith('#'):
                 continue
 
             if not line:
                 continue
 
-            yield line.strip()
+            yield line
 
     def _check_if_exists(self, web_shell_url):
         """
@@ -136,28 +138,32 @@ class find_backdoors(CrawlPlugin):
         :param response: HTTPResponse object
         :return: A bool value
         """
-        if not is_404(response):
-            body_text = response.get_body()
-            dom = response.get_dom()
-            if dom is not None:
-                for ele, attrs in BACKDOOR_COLLECTION.iteritems():
-                    for attrname, attr_vals in attrs.iteritems():
-                        # Set of lowered attribute values
-                        dom_attr_vals = \
-                            set(n.get(attrname).lower() for n in
-                                (dom.xpath('//%s[@%s]' % (ele, attrname))))
-                        # If at least one elem in intersection return True
-                        if (dom_attr_vals and set(attr_vals)):
-                            return True
+        if is_404(response):
+            return False
 
-            # If no regex matched then try with keywords. At least 2 should be
-            # contained in 'body_text' to succeed.
-            times = 0
-            for back_kw in KNOWN_OFFENSIVE_WORDS:
-                if re.search(back_kw, body_text, re.I):
-                    times += 1
-                    if times == 2:
+        body_text = response.get_body()
+        dom = response.get_dom()
+        if dom is not None:
+            for ele, attrs in BACKDOOR_COLLECTION.iteritems():
+                for attrname, attr_vals in attrs.iteritems():
+                    # Set of lowered attribute values
+                    dom_attr_vals = \
+                        set(n.get(attrname).lower() for n in
+                            (dom.xpath('//%s[@%s]' % (ele, attrname))))
+
+                    # If at least one elem in intersection return True
+                    if dom_attr_vals & set(attr_vals):
                         return True
+
+        # If no regex matched then try with keywords. At least 2 should be
+        # contained in 'body_text' to succeed.
+        times = 0
+        for back_kw in KNOWN_OFFENSIVE_WORDS:
+            if re.search(back_kw, body_text, re.I):
+                times += 1
+                if times == 2:
+                    return True
+
         return False
 
     def get_long_desc(self):

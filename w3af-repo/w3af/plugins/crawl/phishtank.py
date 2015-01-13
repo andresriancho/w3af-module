@@ -31,6 +31,7 @@ import w3af.core.data.constants.severity as severity
 from w3af import ROOT_PATH
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.kb.vuln import Vuln
+from w3af.core.data.esmre.esm_multi_in import esm_multi_in
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
 from w3af.core.controllers.plugins.crawl_plugin import CrawlPlugin
 from w3af.core.controllers.exceptions import RunOnce, BaseFrameworkException
@@ -182,9 +183,10 @@ class PhishTankHandler(object):
     """
     def __init__(self, to_check):
         self._to_check = to_check
-        
-        self.url = ''
-        self.phish_detail_url = ''
+        self._to_check_esm = esm_multi_in(to_check)
+
+        self.url = u''
+        self.phish_detail_url = u''
         
         self.inside_entry = False
         self.inside_URL = False
@@ -194,16 +196,20 @@ class PhishTankHandler(object):
         self.matches = []
 
     def start(self, name, attrs):
+        # name parameters are strings (as sent by lxml) so we use strings here
+        # to avoid the conversion
         if name == 'entry':
             self.inside_entry = True
 
         elif name == 'url':
             self.inside_URL = True
-            self.url = ''
+            # But when it sends the information in data(), it uses unicode
+            self.url = u''
 
         elif name == 'phish_detail_url':
             self.inside_detail = True
-            self.phish_detail_url = ''
+            # But when it sends the information in data(), it uses unicode
+            self.phish_detail_url = u''
 
         return
 
@@ -215,6 +221,8 @@ class PhishTankHandler(object):
             self.phish_detail_url += ch
 
     def end(self, name):
+        # name parameters are strings (as sent by lxml) so we use strings here
+        # to avoid the conversion
         if name == 'phish_detail_url':
             self.inside_detail = False
 
@@ -228,18 +236,18 @@ class PhishTankHandler(object):
             #    Now I try to match the entry with an element in the
             #    to_check_list
             #
-            for target_host in self._to_check:
-                if target_host in self.url:
-                    phish_url = URL(self.url)
-                    target_host_url = URL(target_host)
+            query_result = self._to_check_esm.query(self.url)
 
-                    if target_host_url.get_domain() == phish_url.get_domain() or \
-                    phish_url.get_domain().endswith('.' + target_host_url.get_domain()):
+            if query_result:
+                phish_url = URL(self.url)
+                target_host_url = URL(query_result[0])
 
-                        phish_detail_url = URL(self.phish_detail_url)
-                        ptm = PhishTankMatch(phish_url,
-                                             phish_detail_url)
-                        self.matches.append(ptm)
+                if target_host_url.get_domain() == phish_url.get_domain() or \
+                phish_url.get_domain().endswith('.' + target_host_url.get_domain()):
+
+                    phish_detail_url = URL(self.phish_detail_url)
+                    ptm = PhishTankMatch(phish_url, phish_detail_url)
+                    self.matches.append(ptm)
 
     def close(self):
         return self.matches

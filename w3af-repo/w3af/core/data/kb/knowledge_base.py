@@ -27,6 +27,7 @@ import collections
 from w3af.core.data.fuzzer.utils import rand_alpha
 from w3af.core.data.db.dbms import get_default_persistent_db_instance
 from w3af.core.data.db.disk_set import DiskSet
+from w3af.core.data.misc.cpickle_dumps import cpickle_dumps
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
 from w3af.core.data.kb.vuln import Vuln
@@ -176,7 +177,8 @@ class BasicKnowledgeBase(object):
 
     def get_all_entries_of_class(self, klass):
         """
-        :return: A list of all objects of class == klass that are saved in the kb.
+        :return: A list of all objects of class == klass that are saved in the
+                 kb.
         """
         raise NotImplementedError
 
@@ -221,8 +223,8 @@ class DBKnowledgeBase(BasicKnowledgeBase):
     def __init__(self):
         super(DBKnowledgeBase, self).__init__()
         
-        self.urls = DiskSet()
-        self.fuzzable_requests = DiskSet()
+        self.urls = DiskSet(table_prefix='kb_urls')
+        self.fuzzable_requests = DiskSet(table_prefix='kb_fuzzable_requests')
         
         self.db = get_default_persistent_db_instance()
 
@@ -231,7 +233,7 @@ class DBKnowledgeBase(BasicKnowledgeBase):
                    ('uniq_id', 'TEXT'),
                    ('pickle', 'BLOB')]
 
-        self.table_name = rand_alpha(30)
+        self.table_name = 'knowledge_base_' + rand_alpha(30)
         self.db.create_table(self.table_name, columns)
         self.db.create_index(self.table_name, ['location_a', 'location_b'])
         self.db.create_index(self.table_name, ['uniq_id',])
@@ -300,7 +302,7 @@ class DBKnowledgeBase(BasicKnowledgeBase):
         location_a = self._get_real_name(location_a)
         uniq_id = self._get_uniq_id(value)
         
-        pickled_obj = cPickle.dumps(value)
+        pickled_obj = cpickle_dumps(value)
         t = (location_a, location_b, uniq_id, pickled_obj)
         
         query = "INSERT INTO %s VALUES (?, ?, ?, ?)" % self.table_name
@@ -468,10 +470,10 @@ class DBKnowledgeBase(BasicKnowledgeBase):
         
         # Remove the old, create new.
         self.urls.cleanup()
-        self.urls = DiskSet()
+        self.urls = DiskSet(table_prefix='kb_urls')
         
         self.fuzzable_requests.cleanup()
-        self.fuzzable_requests = DiskSet()
+        self.fuzzable_requests = DiskSet(table_prefix='kb_fuzzable_requests')
         
         self.observers.clear()
     

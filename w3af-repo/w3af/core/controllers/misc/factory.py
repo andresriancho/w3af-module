@@ -55,14 +55,16 @@ def factory(module_name, *args):
             module_inst = sys.modules[module_name]
             a_class = getattr(module_inst, class_name)
         except Exception, e:
-            msg = 'The requested plugin ("%s") doesn\'t have a correct format: "%s".'
+            msg = 'The requested plugin ("%s") doesn\'t have a correct' \
+                  ' format: "%s".'
             raise BaseFrameworkException(msg % (module_name, e))
         else:
             try:
                 inst = a_class(*args)
             except Exception, e:
-                msg = 'Failed to get an instance of "%s". Original exception: '
-                msg += '"%s". Traceback for this error: %s'
-                raise BaseFrameworkException(
-                    msg % (class_name, e, traceback.format_exc()))
+                msg = 'Failed to get an instance of "%s". Original exception:'\
+                      ' "%s". Traceback for this error: %s'
+                msg = msg % (class_name, e, traceback.format_exc())
+                raise BaseFrameworkException(msg)
+
             return inst

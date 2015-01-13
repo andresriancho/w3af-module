@@ -215,10 +215,10 @@ class Databases:
         else:
             dbs = self.getDbs()
 
+        dbs = [_ for _ in dbs if _ and _.strip()]
+
         for db in dbs:
             dbs[dbs.index(db)] = safeSQLIdentificatorNaming(db)
-
-        dbs = filter(None, dbs)
 
         if bruteForce:
             resumeAvailable = False
@@ -746,9 +746,6 @@ class Databases:
         pushValue(conf.tbl)
         pushValue(conf.col)
 
-        conf.db = None
-        conf.tbl = None
-        conf.col = None
         kb.data.cachedTables = {}
         kb.data.cachedColumns = {}
 
@@ -775,6 +772,9 @@ class Databases:
         return kb.data.cachedColumns
 
     def _tableGetCount(self, db, table):
+        if not db or not table:
+            return None
+
         if Backend.getIdentifiedDbms() in (DBMS.ORACLE, DBMS.DB2):
             db = db.upper()
             table = table.upper()

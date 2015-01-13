@@ -23,8 +23,9 @@ import unittest
 import cPickle
 import msgpack
 
+from random import choice
+
 from nose.plugins.attrib import attr
-from nose.plugins.skip import SkipTest
 
 from w3af.core.data.url.HTTPResponse import HTTPResponse, DEFAULT_CHARSET
 from w3af.core.data.misc.encoding import smart_unicode, ESCAPED_CHAR
@@ -57,7 +58,7 @@ class TestHTTPResponse(unittest.TestCase):
         """
         self.assertRaises(AssertionError, self.resp.get_body)
 
-    def test_rawread_is_none(self):
+    def test_raw_read_is_none(self):
         """
         Guarantee that the '_raw_body' attr is set to None after
         used (Memory optimization)
@@ -113,8 +114,8 @@ class TestHTTPResponse(unittest.TestCase):
             body = ('<meta http-equiv=Content-Type content="text/html;'
                     'charset=utf-16"/>' + body)
             htmlbody = '%s' % body.encode(charset)
-            resp = self.create_resp(
-                Headers([('Content-Type', hvalue)]), htmlbody)
+            resp = self.create_resp(Headers([('Content-Type', hvalue)]),
+                                    htmlbody)
             self.assertEquals(body, resp.get_body())
 
     def test_parse_response_with_charset_in_meta_header(self):
@@ -143,7 +144,6 @@ class TestHTTPResponse(unittest.TestCase):
     def test_parse_response_with_wrong_charset(self):
         # A wrong or non-existant charset was set; try to decode the response
         # using the default charset and handling scheme
-        from random import choice
         for body, charset in TEST_RESPONSES.values():
             html = body.encode(charset)
             headers = Headers([('Content-Type', 'text/xml; charset=%s' %
@@ -155,46 +155,6 @@ class TestHTTPResponse(unittest.TestCase):
                 resp.body
             )
 
-    def test_eval_xpath_in_dom(self):
-        html = """
-        <html>
-          <head>
-            <title>THE TITLE</title>
-          </head>
-          <body>
-            <input name="user" type="text">
-            <input name="pass" type="password">
-          </body>
-        </html>"""
-        headers = Headers([('Content-Type', 'text/xml')])
-        resp = self.create_resp(headers, html)
-        self.assertEquals(2, len(resp.get_dom().xpath('.//input')))
-
-    def test_dom_are_the_same(self):
-        resp = self.create_resp(
-            Headers([('Content-Type', 'text/html')]), "<html/>")
-        domid = id(resp.get_dom())
-        self.assertEquals(domid, id(resp.get_dom()))
-
-    def test_get_clear_text_body(self):
-        html = 'header <b>ABC</b>-<b>DEF</b>-<b>XYZ</b> footer'
-        clear_text = 'header ABC-DEF-XYZ footer'
-        headers = Headers([('Content-Type', 'text/html')])
-        resp = self.create_resp(headers, html)
-        self.assertEquals(clear_text, resp.get_clear_text_body())
-
-    def test_get_clear_text_body_memoized(self):
-        html = 'header <b>ABC</b>-<b>DEF</b>-<b>XYZ</b> footer'
-        clear_text = 'header ABC-DEF-XYZ footer'
-        headers = Headers([('Content-Type', 'text/html')])
-        resp = self.create_resp(headers, html)
-
-        calculated_clear_text = resp.get_clear_text_body()
-        calculated_clear_text_2 = resp.get_clear_text_body()
-
-        self.assertEquals(clear_text, calculated_clear_text)
-        self.assertIs(calculated_clear_text_2, calculated_clear_text)
-
     def test_get_lower_case_headers(self):
         headers = Headers([('Content-Type', 'text/html')])
         lcase_headers = Headers([('content-type', 'text/html')])
@@ -204,7 +164,7 @@ class TestHTTPResponse(unittest.TestCase):
         self.assertEqual(resp.get_lower_case_headers(), lcase_headers)
         self.assertIn('content-type', resp.get_lower_case_headers())
 
-    def test_pickleable_no_dom(self):
+    def test_pickleable_http_response(self):
         html = 'header <b>ABC</b>-<b>DEF</b>-<b>XYZ</b> footer'
         headers = Headers([('Content-Type', 'text/html')])
         resp = self.create_resp(headers, html)
@@ -213,30 +173,6 @@ class TestHTTPResponse(unittest.TestCase):
         unpickled_resp = cPickle.loads(pickled_resp)
         
         self.assertEqual(unpickled_resp, resp)
-
-    def test_pickleable_dom(self):
-        
-        msg = 'lxml DOM objects are NOT pickleable. This is an impediment for' \
-              ' having a multiprocess process that will perform all HTTP requests' \
-              ' and return HTTP responses over a multiprocessing Queue AND only' \
-              ' process the DOM once. Of course I can set the dom to None before' \
-              ' pickling.'
-        raise SkipTest(msg)
-    
-        html = 'header <b>ABC</b>-<b>DEF</b>-<b>XYZ</b> footer'
-        headers = Headers([('Content-Type', 'text/html')])
-        resp = self.create_resp(headers, html)
-        # This just calculates the DOM and stores it as an attribute, NEEDS
-        # to be done before pickling (dumps) to have a real test.
-        original_dom = resp.get_dom()
-        
-        pickled_resp = cPickle.dumps(resp)
-        unpickled_resp = cPickle.loads(pickled_resp)
-        
-        self.assertEqual(unpickled_resp, resp)
-        
-        unpickled_dom = unpickled_resp.get_dom()
-        self.assertEqual(unpickled_dom, original_dom)
 
     def test_from_dict(self):
         html = 'header <b>ABC</b>-<b>DEF</b>-<b>XYZ</b> footer'
@@ -278,4 +214,20 @@ class TestHTTPResponse(unittest.TestCase):
         headers = Headers([('Content-Type', 'application/pdf')])
         body = None
         self.assertRaises(TypeError, HTTPResponse, 200, body, headers, url, url)
-        
+
+    def test_dump_response_head_3661(self):
+        """
+        :see: https://github.com/andresriancho/w3af/issues/3661
+        """
+        url = URL('http://w3af.com')
+        # '\xf3' is o-tilde in windows-1251
+        #
+        # We get from that arbitrary character to o-tilde in windows-1251 when
+        # we fail to decode it, and chardet guesses the encoding.
+        headers = Headers([('Content-Type', '\xf3')])
+        resp = HTTPResponse(200, '', headers, url, url)
+
+        # '\xc3\xb3' is o-tilde in utf-8
+        expected_dump = 'HTTP/1.1 200 OK\r\nContent-Type: \xc3\xb3\r\n'
+
+        self.assertEqual(resp.dump_response_head(), expected_dump)

@@ -129,7 +129,7 @@ class TestDiskList(unittest.TestCase):
         for i in xrange(0, 100):
             _ = dl.append(i)
 
-        self.assertEqual(len(dl) == 100, True)
+        self.assertEqual(len(dl), 100)
 
     def test_pickle(self):
         dl = DiskList()
@@ -142,9 +142,9 @@ class TestDiskList(unittest.TestCase):
         for i in dl:
             values.append(i)
 
-        self.assertEqual(values[0] == 'a', True)
-        self.assertEqual(values[1] == 1, True)
-        self.assertEqual(values[2] == [3, 2, 1], True)
+        self.assertEqual(values[0], 'a')
+        self.assertEqual(values[1], 1)
+        self.assertEqual(values[2], [3, 2, 1])
 
     def test_getitem(self):
         dl = DiskList()
@@ -153,9 +153,9 @@ class TestDiskList(unittest.TestCase):
         dl.append(1)
         dl.append([3, 2, 1])
 
-        self.assertEqual(dl[0] == 'a', True)
-        self.assertEqual(dl[1] == 1, True)
-        self.assertEqual(dl[2] == [3, 2, 1], True)
+        self.assertEqual(dl[0], 'a')
+        self.assertEqual(dl[1], 1)
+        self.assertEqual(dl[2], [3, 2, 1])
         self.assertRaises(IndexError, dl.__getitem__, 3)
         
     def test_getitem_negative(self):
@@ -273,6 +273,19 @@ class TestDiskList(unittest.TestCase):
         disk_list.cleanup()
         
         self.assertFalse(db.table_exists(table_name))
+
+    def test_table_name_with_prefix(self):
+        _unittest = 'unittest'
+        disk_list = DiskList(_unittest)
+
+        self.assertIn(_unittest, disk_list.table_name)
+        db = get_default_temp_db_instance()
+
+        self.assertTrue(db.table_exists(disk_list.table_name))
+
+        disk_list.cleanup()
+
+        self.assertFalse(db.table_exists(disk_list.table_name))
 
     def test_remove_table_then_add(self):
         disk_list = DiskList()

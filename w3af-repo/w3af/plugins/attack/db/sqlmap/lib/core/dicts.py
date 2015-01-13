@@ -207,6 +207,7 @@ POST_HINT_CONTENT_TYPES = {
                                 POST_HINT.MULTIPART: "multipart/form-data",
                                 POST_HINT.SOAP: "application/soap+xml",
                                 POST_HINT.XML: "application/xml",
+                                POST_HINT.ARRAY_LIKE: "application/x-www-form-urlencoded; charset=utf-8",
                           }
 
 DEPRECATED_OPTIONS = {
@@ -223,5 +224,5 @@ DUMP_DATA_PREPROCESS = {
 
 DEFAULT_DOC_ROOTS = {
                         OS.WINDOWS: ("C:/xampp/htdocs/", "C:/Inetpub/wwwroot/"),
-                        OS.LINUX: ("/var/www/",)
+                        OS.LINUX: ("/var/www/", "/var/www/html", "/usr/local/apache2/htdocs", "/var/www/nginx-default")  # Reference: https://wiki.apache.org/httpd/DistrosDefaultLayout
                     }

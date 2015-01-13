@@ -34,6 +34,7 @@ from w3af.core.controllers.core_helpers.status import w3af_core_status
 from w3af.core.controllers.exception_handling.cleanup_bug_report import cleanup_bug_report
 from w3af.core.controllers.exceptions import (ScanMustStopException,
                                               ScanMustStopByUserRequest,
+                                              HTTPRequestException,
                                               ScanMustStopByUnknownReasonExc)
 
 DEBUG = os.environ.get('DEBUG', '0') == '1'
@@ -49,7 +50,8 @@ class ExceptionHandler(object):
 
     MAX_EXCEPTIONS_PER_PLUGIN = 3
     NO_HANDLING = (MemoryError, ScanMustStopByUnknownReasonExc,
-                   ScanMustStopException, ScanMustStopByUserRequest)
+                   ScanMustStopException, ScanMustStopByUserRequest,
+                   HTTPRequestException)
 
     if DEBUG:
         NO_HANDLING = list(NO_HANDLING)
@@ -57,8 +59,6 @@ class ExceptionHandler(object):
         NO_HANDLING = tuple(NO_HANDLING)
 
     def __init__(self):
-        # TODO: Maybe this should be a DiskList just to make sure we don't
-        # fill the memory with exceptions?
         self._exception_data = []
         self._lock = threading.RLock()
 
@@ -102,15 +102,7 @@ class ExceptionHandler(object):
 
         stop_on_first_exception = cf.cf.get('stop_on_first_exception')
         if stop_on_first_exception:
-            # TODO: Not sure if this is 100% secure code, but it should work
-            # in most cases, and in the worse scenario it is just a developer
-            # getting hit ;)
-            #
-            # The risk is that the exception being raise is NOT the same
-            # exception that was caught before calling this handle method. This
-            # might happen (not sure actually) in places where lots of
-            # exceptions are raised in a threaded environment
-            raise
+            raise exception, None, tb
 
         #
         # Now we really handle the exception that was produced by the plugin in
@@ -167,19 +159,22 @@ class ExceptionHandler(object):
         @see: generate_summary method for a way of getting a summary in a
               different format.
         """
-        fmt_with_exceptions = 'During the current scan (with id: %s) w3af caught'\
-                              ' %s exceptions in it\'s plugins. The scan was able'\
-                              ' to continue by ignoring those failures but the'\
-                              ' scan result is most likely incomplete.\n\n'\
+        fmt_with_exceptions = 'During the current scan (with id: %s) w3af'\
+                              ' caught %s exceptions in it\'s plugins. The'\
+                              ' scan was able to continue by ignoring those'\
+                              ' failures but the result is most likely'\
+                              ' incomplete.\n\n'\
                               'These are the phases and plugins that raised'\
                               ' exceptions:\n'\
                               '%s\n'\
                               'We recommend you report these vulnerabilities'\
-                              ' to the developers in order to help increase the'\
-                              ' project\'s stability.\n'\
-                              'To report these bugs just run the "report" command.'
+                              ' to the developers in order to help increase'\
+                              ' the project\'s stability.\n'\
+                              'To report these bugs just run the "report"' \
+                              ' command.'
 
-        fmt_without_exceptions = 'No exceptions were raised during scan with id: %s.'
+        fmt_without_exceptions = 'No exceptions were raised during scan with' \
+                                 ' id: %s.'
 
         summary = self.generate_summary()
 
@@ -202,9 +197,7 @@ class ExceptionHandler(object):
         """
         :return: A dict with information about exceptions.
         """
-        res = {}
-        res['total_exceptions'] = len(self._exception_data)
-        res['exceptions'] = {}
+        res = {'total_exceptions': len(self._exception_data), 'exceptions': {}}
         exception_dict = res['exceptions']
 
         for exception in self._exception_data:
@@ -257,7 +250,7 @@ class ExceptionData(object):
 
         self.traceback_str = ''.join(traceback.format_tb(tb))
         self.traceback_str = cleanup_bug_report(self.traceback_str)
-        
+
         self.phase, self.plugin = current_status.latest_running_plugin()
         self.status = current_status
         self.enabled_plugins = enabled_plugins

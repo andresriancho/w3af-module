@@ -172,18 +172,25 @@ class RunFunctor(Process):
 
 
 class SQLMapShell(ReadShell):
-    
-    def __init__(self, vuln, uri_opener, worker_pool, sqlmap):
-        super(SQLMapShell, self).__init__(vuln, uri_opener, worker_pool)
-        self.sqlmap = sqlmap
 
     ALIAS = ('dbs', 'tables', 'users', 'dump')
 
-    def specific_user_input(self, command, params):
+    def __init__(self, vuln, uri_opener, worker_pool, sqlmap):
+        self.sqlmap = sqlmap
+        super(SQLMapShell, self).__init__(vuln, uri_opener, worker_pool)
+
+    def specific_user_input(self, command, params, return_err=True):
         # Call the parent in order to get read/download without duplicating
         # any code.
-        resp = super(SQLMapShell, self).specific_user_input(command, params,
-                                                            return_err=False)
+        #
+        # Not using super() due to some issues I've found in real life
+        #   https://github.com/andresriancho/w3af/issues/3610
+        #
+        # Documented here:
+        #   http://goo.gl/jhRznU
+        #   http://thomas-cokelaer.info/blog/2011/09/382/
+        resp = ReadShell.specific_user_input(self, command, params,
+                                             return_err=False)
         
         if resp is not None:
             return resp
@@ -281,3 +288,15 @@ class SQLMapShell(ReadShell):
                 exit                            Exit this shell session
             """
         return textwrap.dedent(_help)
+
+    def __reduce__(self):
+        """
+        Need to define this method since the Shell class defines it, and we have
+        a different number of __init__ parameters.
+        """
+        return self.__class__, (self._vuln, None, None, self.sqlmap)
+
+    def set_url_opener(self, uo):
+        if uo is not None:
+            self._uri_opener = uo
+            self.sqlmap.start_proxy(uo)

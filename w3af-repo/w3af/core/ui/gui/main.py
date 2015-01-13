@@ -74,6 +74,7 @@ if sys.platform == "win32":
     gtk.rc_add_default_file('%USERPROFILE%/.gtkrc-2.0')
 else:
     gtk.gdk.threads_init()
+    gtk.gdk.threads_enter()
 
 
 class FakeShelve(dict):
@@ -89,7 +90,8 @@ class AboutDialog(gtk.Dialog):
     def __init__(self, w3af):
         super(
             AboutDialog, self).__init__(_("About..."), None, gtk.DIALOG_MODAL,
-                                        (_("Check the web site"), gtk.RESPONSE_CANCEL, gtk.STOCK_OK, gtk.RESPONSE_OK))
+                                        (_("Check the web site"), gtk.RESPONSE_CANCEL,
+                                         gtk.STOCK_OK, gtk.RESPONSE_OK))
 
         # content
         img = gtk.image_new_from_file(os.path.join(GUI_DATA_PATH, 'splash.png'))
@@ -222,14 +224,15 @@ class MainApp(object):
             print ("WARNING: something bad happened when trying to open the"
                    " general config! File: %s. Problem: %s" % (genconfigfile, e))
             self.generalconfig = FakeShelve()
-        
-        self.window.resize(
-            *self.generalconfig.get("mainwindow-size", (1024, 768)))
-        self.window.move(
-            *self.generalconfig.get("mainwindow-position", (0, 0)))
 
+        window_size = self.generalconfig.get("mainwindow-size", (1024, 768))
+        window_position = self.generalconfig.get("mainwindow-position", (0, 0))
         should_maximize = self.generalconfig.get("should-maximize", True)
-        if should_maximize: self.window.maximize()
+
+        self.window.resize(*window_size)
+        self.window.move(*window_position)
+        if should_maximize:
+            self.window.maximize()
 
         mainvbox = gtk.VBox()
         self.window.add(mainvbox)
@@ -238,7 +241,7 @@ class MainApp(object):
         splash.push(_("Initializing core..."))
 
         # This is inited before all, to have a full logging facility.
-        om.out.set_output_plugin_inst(GtkOutput())
+        om.manager.set_output_plugin_inst(GtkOutput())
 
         # status bar
         splash.push(_("Building the status bar..."))
@@ -519,9 +522,19 @@ class MainApp(object):
             self.generalconfig["mainwindow-position"] = w.get_position()
             self.generalconfig.close()
         finally:
+            # We set the generalconfig to a fake shelve just in case other
+            # windows are still open and want to get some data from it, this
+            # prevents: "ValueError: invalid operation on closed shelf"
+            #
+            #       https://github.com/andresriancho/w3af/issues/2691
+            #
+            self.generalconfig = FakeShelve()
+
+            # Quit the mainloop
             gtk.main_quit()
             time.sleep(0.5)
             self.w3af.quit()
+
             return False
 
     def _scan_director(self, widget):
@@ -544,7 +557,8 @@ class MainApp(object):
         for ptype, plugins in self.pcbody.get_activated_plugins():
             self.w3af.plugins.set_plugins(plugins, ptype)
 
-        # save the URL, the rest of the options are saved in the "Advanced" dialog
+        # save the URL, the rest of the options are saved in the "Advanced"
+        # dialog
         options = self.w3af.target.get_options()
 
         # unicode str needed. pygtk works with 'utf8'
@@ -588,7 +602,7 @@ class MainApp(object):
         def start_scan_wrap():
             # Just in case, make sure we have a GtkOutput in the output manager
             # for the current scan
-            om.out.set_output_plugin_inst(GtkOutput())
+            om.manager.set_output_plugin_inst(GtkOutput())
             
             
             try:
@@ -716,7 +730,7 @@ class MainApp(object):
         """
         # After the scan finishes, I want to be able to use the GtkOutput
         # features for exploitation
-        om.out.set_output_plugin_inst(GtkOutput())
+        om.manager.set_output_plugin_inst(GtkOutput())
         
         exception_list = self.w3af.exception_handler.get_unique_exceptions()
         if exception_list:
@@ -740,7 +754,7 @@ class MainApp(object):
         self.window.set_title(MAIN_TITLE)
 
         # This is done here in order to keep the logging facility.
-        om.out.set_output_plugin_inst(GtkOutput())
+        om.manager.set_output_plugin_inst(GtkOutput())
 
     def _scan_superviseStatus(self):
         """Handles the waiting until core finishes the scan.

@@ -60,8 +60,10 @@ def memoized(meth):
     """
     @wraps(meth)
     def cache_wrapper(self, *args, **kwargs):
-        if meth in self._cache:
-            return self._cache[meth]
+        result = self._cache.get(meth, None)
+
+        if result is not None:
+            return result
         else:
             value = meth(self, *args, **kwargs)
             self._cache[meth] = value
@@ -323,7 +325,7 @@ class URL(DiskItem):
     @memoized
     def uri2url(self):
         """
-        :return: Returns a string contaning the URL without the query string.
+        :return: Returns a string containing the URL without the query string.
         """
         return URL.from_parts(self.scheme, self.netloc, self.path,
                               None, None, None, encoding=self._encoding)
@@ -548,29 +550,37 @@ class URL(DiskItem):
         output: myself.ru
 
         Code taken from: http://getoutfoxed.com/node/41
+
+        TODO: If you ever want to improve this code section, you might be
+              interested in https://pypi.python.org/pypi/tldextract , which
+              seems to be really updated and supported.
+
+              The (minor) down side is that they HTTP GET the GTOP_LEVEL_DOMAINS
+              each time you start the library for the first time.
         """
         # break authority into two parts: subdomain(s), and base authority
         # e.g. images.google.com --> [images, google.com]
         #      www.popo.com.au --> [www, popo.com.au]
         def split_authority(aAuthority):
 
-            # walk down from right, stop at (but include) first non-toplevel domain
+            # walk down from right, stop at (but include) first non-toplevel
+            # domain
             chunks = re.split("\.", aAuthority)
             chunks.reverse()
 
-            baseAuthority = ""
+            base_authority = ""
             subdomain = ""
-            foundBreak = 0
+            found_break = 0
 
             for chunk in chunks:
-                if (not foundBreak):
-                    baseAuthority = chunk + (
-                        ".", "")[baseAuthority == ""] + baseAuthority
+                if not found_break:
+                    base_authority = chunk + (
+                        ".", "")[base_authority == ""] + base_authority
                 else:
                     subdomain = chunk + (".", "")[subdomain == ""] + subdomain
                 if chunk not in GTOP_LEVEL_DOMAINS:
-                    foundBreak = 1
-            return ([subdomain, baseAuthority])
+                    found_break = 1
+            return [subdomain, base_authority]
 
         # def to split URI into its parts, returned as URI object
         def decompose_uri():

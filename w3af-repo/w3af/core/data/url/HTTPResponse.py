@@ -25,11 +25,12 @@ import httplib
 import threading
 import urllib2
 
-from lxml import etree
 from itertools import imap
 
 import w3af.core.controllers.output_manager as om
+import w3af.core.data.parsers.parser_cache as parser_cache
 
+from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.misc.encoding import smart_unicode, ESCAPED_CHAR
 from w3af.core.data.constants.encodings import DEFAULT_ENCODING
 from w3af.core.data.parsers.url import URL
@@ -48,7 +49,7 @@ STATUS_LINE = 'HTTP/1.1 %s %s' + CRLF
 
 CHARSET_EXTRACT_RE = re.compile('charset=\s*?([\w-]+)')
 CHARSET_META_RE = re.compile('<meta.*?content=".*?charset=\s*?([\w-]+)".*?>')
-ANY_TAG_MATCH = re.compile('(<.*?>)')
+DEFAULT_WAIT_TIME = 0.2
 
 
 class HTTPResponse(object):
@@ -60,7 +61,8 @@ class HTTPResponse(object):
     DOC_TYPE_OTHER = 'DOC_TYPE_OTHER'
 
     def __init__(self, code, read, headers, geturl, original_url,
-                 msg='OK', _id=None, time=0.2, alias=None, charset=None):
+                 msg='OK', _id=None, time=DEFAULT_WAIT_TIME, alias=None,
+                 charset=None):
         """
         :param code: HTTP code
         :param read: HTTP body text; typically a string
@@ -68,7 +70,7 @@ class HTTPResponse(object):
         :param geturl: URL object instance
         :param original_url: URL object instance
         :param msg: HTTP message
-        :param id: Optional response identifier
+        :param _id: Optional response identifier
         :param time: The time between the request and the response
         :param alias: Alias for the response, this contains a hash that helps
                       the backend sqlite find http_responses faster by indexing
@@ -145,6 +147,10 @@ class HTTPResponse(object):
         else:
             url_inst = original_url = URL(resp.geturl())
 
+        httplib_time = DEFAULT_WAIT_TIME
+        if hasattr(httplibresp, 'get_wait_time'):
+            # This is defined in the keep alive http response object
+            httplib_time = httplibresp.get_wait_time()
 
         if isinstance(resp, urllib2.HTTPError):
             # This is possible because in errors.py I do:
@@ -155,7 +161,7 @@ class HTTPResponse(object):
             charset = getattr(resp, 'encoding', None)
         
         return cls(code, body, hdrs, url_inst, original_url,
-                   msg, charset=charset)
+                   msg, charset=charset, time=httplib_time)
 
     @classmethod    
     def from_dict(cls, unserialized_dict):
@@ -257,69 +263,41 @@ class HTTPResponse(object):
 
     body = property(get_body, set_body)
 
-    @memoized
-    def get_clear_text_body(self):
-        """
-        :return: A clear text representation of the HTTP response body.
-        """
-        # Calculate the clear text body
-        dom = self.get_dom()
-        if dom is not None:
-            clear_text_body = ''.join(dom.itertext())
-        else:
-            clear_text_body = ANY_TAG_MATCH.sub('', self.get_body())
-            
-        return clear_text_body
-
-    def set_dom(self, dom_inst):
-        """
-        This setter is part of a performance improvement I'm talking about in
-        get_dom() and sgmlParser._parse().
-
-        Without this set_dom() which is called from sgmlParser._parse() when the
-        code runs:
-            sgmlParser( http_response )
-            ...
-            http_response.get_dom()
-
-        The DOM is calculated twice.
-
-        We still need to figure out how to solve the other issue which should
-        aim to avoid the double DOM generation when:
-            http_response.get_dom()
-            ...
-            sgmlParser( http_response )
-
-        :return: None
-        """
-        self._dom = dom_inst
-
     def get_dom(self):
         """
-        I don't want to calculate the DOM for all responses, only for those
-        which are needed. This method will first calculate the DOM, and then
-        save it for upcoming calls.
-
-        @see: TODO: Potential performance improvement in sgmlParser._parse()
-                    for ideas on how to reduce CPU usage.
-
-        :return: The DOM, or None if the HTML normalization failed.
+        Just a shortcut to get the dom (if any)
+        :return: A DOM instance from lxml
         """
-        if self._dom is None:
+        parser = self.get_parser()
+        if parser is not None:
+            return parser.get_dom()
 
-            if self.doc_type == HTTPResponse.DOC_TYPE_IMAGE:
-                # Don't waste CPU time trying to create a DOM out of an image
-                return None
+        # No DOM for this response
+        return None
 
-            try:
-                parser = etree.HTMLParser(recover=True)
-                self._dom = etree.fromstring(self.body, parser)
-            except Exception, e:
-                msg = 'The HTTP body for "%s" could NOT be parsed by lxml.'\
-                      ' The exception was: "%s".'
-                om.out.debug(msg % (self.get_url(), e))
+    def get_clear_text_body(self):
+        """
+        Just a shortcut to get the clear text body
+        :return: A unicode string
+        """
+        parser = self.get_parser()
+        if parser is not None:
+            return parser.get_clear_text_body()
 
-        return self._dom
+        return u''
+
+    def get_parser(self):
+        """
+        Just a shortcut to get the parser for this response, we get this from
+        the document parser cache.
+
+        :return: A DocumentParser instance or None
+        """
+        try:
+            return parser_cache.dpc.get_document_parser_for(self)
+        except BaseFrameworkException:
+            # Failed to find a suitable parser for the document
+            return
 
     def get_charset(self):
         if not self._charset:
@@ -640,9 +618,26 @@ class HTTPResponse(object):
             Header1: Value1
             Header2: Value2
         """
-        dump_head = "%s%s" % (self.get_status_line(), self.dump_headers())
+        # Adding some extreme exception logging to be able to better debug
+        # https://github.com/andresriancho/w3af/issues/3661
+        status_line = self.get_status_line()
+        dumped_headers = self.dump_headers()
+
+        try:
+            dump_head = "%s%s" % (status_line, dumped_headers)
+        except UnicodeDecodeError, ude:
+            msg = 'UnicodeDecodeError found at dump_response_head(). Original'\
+                  ' exception was: "%s". The response charset is: "%s", the'\
+                  ' content-type: "%s", the status_line is "%r" and the' \
+                  ' dumped_headers are: "%r".'
+
+            args = (ude, self.charset, self.content_type, status_line,
+                    dumped_headers)
+            raise Exception(msg % args)
+
         if type(dump_head) is unicode:
             dump_head = dump_head.encode(self.charset)
+
         return dump_head
 
     def dump(self):
