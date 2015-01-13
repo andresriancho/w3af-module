@@ -17,7 +17,7 @@ if [ $CIRCLE_BRANCH == 'master' ]; then
     git pull -v
 
     git checkout $CIRCLE_BRANCH
-    git rm -r -q w3af-repo
+    #git rm -r -q w3af-repo
     git read-tree --prefix=w3af-repo/ -u w3af-master
 
     git merge --squash -s subtree --no-commit w3af-master
@@ -26,7 +26,7 @@ else
     git pull -v
 
     git checkout $CIRCLE_BRANCH
-    git rm -r -q w3af-repo
+    #git rm -r -q w3af-repo
     git read-tree --prefix=w3af-repo/ -u w3af-develop
 
     git merge --squash -s subtree --no-commit w3af-develop
