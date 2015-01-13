@@ -1,4 +1,5 @@
 import unittest
+import subprocess
 
 from tests.base import BaseInstallMixin
 
@@ -27,7 +28,9 @@ w3af-module repository.
 
 class TestPIPInstallRemote(BaseInstallMixin, unittest.TestCase):
 
-    INSTALL_CMD = 'pip install git+https://github.com/andresriancho/w3af-module.git'
+    branch = subprocess.check_output('git rev-parse --abbrev-ref HEAD', shell=True).strip()
+    INSTALL_CMD = 'pip install git+https://github.com/andresriancho/w3af-module.git@%s' % branch
+
     ERROR_MSG = REMOTE_ERROR_MSG
 
 
