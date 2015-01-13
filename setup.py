@@ -11,7 +11,7 @@ try:
 except (ImportError, AssertionError) as e:
     print >> sys.stderr, (
         "The required version of setuptools (==%s) is not available,"
-        "%s was found instead.\n"
+        " %s was found instead.\n"
         "Please install a more recent version first, using 'pip install "
         "--upgrade setuptools==%s'.") % (SETUPTOOLS_VERSION,
                                          __version__,
