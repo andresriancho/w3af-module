@@ -2,7 +2,7 @@
 import sys
 import os
 
-SETUPTOOLS_VERSION = '2.0.1'
+SETUPTOOLS_VERSION = '3.6'
 PROFILES_DIR = 'w3af-repo/profiles/'
 
 try:
