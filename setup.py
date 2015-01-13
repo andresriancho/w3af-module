@@ -10,9 +10,12 @@ try:
     assert __version__ == SETUPTOOLS_VERSION
 except (ImportError, AssertionError) as e:
     print >> sys.stderr, (
-        "The required version of setuptools (==%s) is not available.\n"
+        "The required version of setuptools (==%s) is not available,"
+        "%s was found instead.\n"
         "Please install a more recent version first, using 'pip install "
-        "--upgrade setuptools==%s'.") % (SETUPTOOLS_VERSION, SETUPTOOLS_VERSION)
+        "--upgrade setuptools==%s'.") % (SETUPTOOLS_VERSION,
+                                         __version__,
+                                         SETUPTOOLS_VERSION)
     sys.exit(2)
 
 from setuptools import setup, find_packages
