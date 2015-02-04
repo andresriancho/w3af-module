@@ -27,12 +27,14 @@ import signal
 import atexit
 import multiprocessing
 
-from darts.lib.utils.lru import LRUDict
+from darts.lib.utils.lru import SynchronizedLRUDict
 from tblib.decorators import Error
 
 import w3af.core.controllers.output_manager as om
 
+from w3af.core.controllers.profiling import start_profiling_no_core
 from w3af.core.controllers.threads.process_pool import ProcessPool
+from w3af.core.controllers.threads.is_main_process import is_main_process
 from w3af.core.controllers.output_manager import log_sink_factory
 from w3af.core.data.parsers.document_parser import DocumentParser
 from w3af.core.controllers.exceptions import BaseFrameworkException
@@ -53,7 +55,7 @@ class ParserCache(object):
     MAX_WORKERS = 2 if is_running_on_ci() else (multiprocessing.cpu_count() / 2) or 1
 
     def __init__(self):
-        self._cache = LRUDict(self.LRU_LENGTH)
+        self._cache = SynchronizedLRUDict(self.LRU_LENGTH)
         self._pool = None
         self._processes = None
         self._parser_finished_events = {}
@@ -190,9 +192,20 @@ class ParserCache(object):
             # Just remove it so it doesn't use memory
             self._processes.pop(hash_string, None)
 
-            # Let other know that we're done
-            event = self._parser_finished_events.pop(hash_string)
-            event.set()
+            # Let other threads know that we're done
+            event = self._parser_finished_events.pop(hash_string, None)
+
+            if event is not None:
+                # There is a really rare race condition where more than one
+                # thread calls _parse_http_response_in_worker and queues the
+                # same hash_string for processing, since it's so rare I believe
+                # the best way to fix it is to:
+                #
+                #   * Avoid adding a lock
+                #   * Accept that in these rare edge case we'll waste some CPU
+                #
+                # https://circleci.com/gh/andresriancho/w3af/1354
+                event.set()
 
         return parser_output
 
@@ -285,7 +298,9 @@ def init_worker(log_queue):
     """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     log_sink_factory(log_queue)
+    start_profiling_no_core()
 
 
-manager = multiprocessing.Manager()
-dpc = ParserCache()
+if is_main_process():
+    manager = multiprocessing.Manager()
+    dpc = ParserCache()
