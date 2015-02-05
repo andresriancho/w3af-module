@@ -149,7 +149,8 @@ class w3afCore(object):
         self.strategy = w3af_core_strategy(self)
         
         # And create this again just to clear the internal states
-        self.status = w3af_core_status(self)
+        scans_completed = self.status.scans_completed
+        self.status = w3af_core_status(self, scans_completed=scans_completed)
 
         # Init the 404 detection for the whole framework
         fp_404_db = fingerprint_404_singleton(cleanup=True)
@@ -194,8 +195,8 @@ class w3afCore(object):
                   ' to stop.'
             om.out.error(msg)
             raise
-        except threading.ThreadError:
-            handle_threading_error(self.status.scans_completed)
+        except threading.ThreadError, te:
+            handle_threading_error(self.status.scans_completed, te)
         except HTTPRequestException, hre:
             # TODO: These exceptions should never reach this level
             #       adding the exception handler to raise them and fix any
@@ -339,8 +340,9 @@ class w3afCore(object):
             self.strategy.stop()
 
         stop_start_time = time.time()
-        
-        wait_max = 10 # seconds
+
+        # seconds
+        wait_max = 10
         loop_delay = 0.5
         for _ in xrange(int(wait_max/loop_delay)):
             if not self.status.is_running():
@@ -359,6 +361,9 @@ class w3afCore(object):
             msg %= wait_max
         
         om.out.debug(msg)
+
+        # Finally we terminate+join the worker pool
+        self.worker_pool.terminate_join()
     
     def quit(self):
         """
@@ -404,11 +409,12 @@ class w3afCore(object):
         """
         This method is called when the process ends normally or by an error.
         """
-        # The scan has ended, and we've already joined() the workers in the
-        # strategy (in a nice way, waiting for them to finish before returning
-        # from strategy.start call), so there is no need to call this:
+        # The scan has ended, and we've already joined() the consumer threads
+        # from strategy (in a nice way, waiting for them to finish before
+        # returning from strategy.start call), so this terminate and join call
+        # should return really quick:
         #
-        #self.worker_pool.terminate_join()
+        self.worker_pool.terminate_join()
 
         try:
             # Close the output manager, this needs to be done BEFORE the end()
@@ -492,7 +498,7 @@ class w3afCore(object):
             sys.exit(-3)
 
 
-def handle_threading_error(scans_completed):
+def handle_threading_error(scans_completed, threading_error):
     """
     Catch threading errors such as "error: can't start new thread"
     and handle them in a specific way
@@ -506,7 +512,8 @@ def handle_threading_error(scans_completed):
     
     pprint_threads = nice_thread_repr(threading.enumerate())
     
-    msg = 'An error occurred while trying to start a new thread.\n'\
+    msg = 'A "%s" threading error was found.\n'\
           ' The current process has a total of %s active threads and has'\
           ' completed %s scans. The complete list of threads follows:\n\n%s'
-    raise Exception(msg % (active_threads, scans_completed, pprint_threads))
+    raise Exception(msg % (threading_error, active_threads,
+                           scans_completed, pprint_threads))
