@@ -20,8 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
 import sys
-import threading
 import Queue
+import threading
 
 from itertools import repeat
 from tblib.decorators import Error
@@ -258,7 +258,7 @@ class UrlOpenerProxy(object):
                       'get_cookies',
                       'get_remote_file_size',
                       'add_headers',
-                      '_check_uri',
+                      'assert_allowed_proto',
                       '_handle_send_socket_error',
                       '_handle_send_urllib_error',
                       '_handle_send_success',
@@ -273,7 +273,9 @@ class UrlOpenerProxy(object):
 
     def __getattr__(self, name):
 
-        def meth(*args, **kwargs):
+        attr = getattr(self._url_opener, name)
+
+        def url_opener_proxy(*args, **kwargs):
             try:
                 return attr(*args, **kwargs)
             except HTTPRequestException, hre:
@@ -301,12 +303,10 @@ class UrlOpenerProxy(object):
 
                 return result
 
-        attr = getattr(self._url_opener, name)
-
         if name in self.NO_WRAPPER_FOR:
             # See note above on NO_WRAPPER_FOR
             return attr
         elif callable(attr):
-            return meth
+            return url_opener_proxy
         else:
             return attr

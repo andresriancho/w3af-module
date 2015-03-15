@@ -90,7 +90,7 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.GET(url, cache=False)
         self.assertIn('root:x:0', http_response.body)
 
-    def test_POST(self):
+    def test_post(self):
         url = URL(get_moth_http('/audit/xss/simple_xss_form.py'))
 
         data = URLEncodedForm()
@@ -99,7 +99,7 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.POST(url, data, cache=False)
         self.assertIn('123456abc', http_response.body)
 
-    def test_POST_special_chars(self):
+    def test_post_special_chars(self):
         url = URL(get_moth_http('/audit/xss/simple_xss_form.py'))
         test_data = u'abc<def>"-á-'
 
@@ -111,6 +111,10 @@ class TestXUrllib(unittest.TestCase):
 
     def test_unknown_domain(self):
         url = URL('http://longsitethatdoesnotexistfoo.com/')
+        self.assertRaises(HTTPRequestException, self.uri_opener.GET, url)
+
+    def test_file_proto(self):
+        url = URL('file://foo/bar.txt')
         self.assertRaises(HTTPRequestException, self.uri_opener.GET, url)
 
     def test_url_port_closed(self):
@@ -369,7 +373,7 @@ class TestXUrllib(unittest.TestCase):
         self.rate_limit_generic(1, 1, 2.2)
 
     def test_rate_limit_zero(self):
-        self.rate_limit_generic(0, 0.01, 0.4)
+        self.rate_limit_generic(0, 0.005, 0.4)
 
     @httpretty.activate
     def rate_limit_generic(self, max_requests_per_second, _min, _max):
