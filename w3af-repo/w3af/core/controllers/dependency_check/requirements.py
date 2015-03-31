@@ -52,9 +52,7 @@ CORE_PIP_PACKAGES = [PIPDependency('clamd', 'clamd', '1.0.1'),
                      PIPDependency('ntlm', 'python-ntlm', '1.0.1'),
                      PIPDependency('Halberd', 'halberd', '0.2.4'),
                      PIPDependency('darts.lib.utils', 'darts.util.lru', '0.5'),
-                     PIPDependency('jinja2', 'Jinja2', '2.7.3'),
-                     PIPDependency('vulndb', 'vulndb', '0.0.6'),
-                     PIPDependency('markdown', 'markdown', '2.6.1')]
+                     PIPDependency('jinja2', 'Jinja2', '2.7.3')]
 
 GUI_PIP_EXTRAS = [PIPDependency('xdot', 'xdot', '0.6')]
 

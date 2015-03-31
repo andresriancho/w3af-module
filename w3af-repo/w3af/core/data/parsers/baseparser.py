@@ -208,12 +208,3 @@ class BaseParser(object):
                  not a SGML document.
         """
         return self._dom
-
-    def clear(self):
-        """
-        Called when the parser won't be used anymore, it should clear all the
-        open files, sockets, memory, etc.
-
-        :return: None
-        """
-        pass

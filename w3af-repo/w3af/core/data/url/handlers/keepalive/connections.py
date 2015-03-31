@@ -119,14 +119,8 @@ class ProxyHTTPConnection(_HTTPConnection):
             if line == '\r\n':
                 break
 
-# https://bugs.kali.org/view.php?id=2160
-proto_names = ('PROTOCOL_SSLv3',
-               'PROTOCOL_TLSv1',
-               'PROTOCOL_SSLv23',
-               'PROTOCOL_SSLv2')
-_protocols = filter(None, (getattr(ssl, pn, None) for pn in proto_names))
 
-# Avoid race conditions
+_protocols = [ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv23]
 _protocols_lock = threading.RLock()
 
 

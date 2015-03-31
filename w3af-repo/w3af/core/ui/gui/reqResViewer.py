@@ -28,7 +28,8 @@ import w3af.core.controllers.output_manager as om
 
 from w3af.core.controllers.exceptions import (BaseFrameworkException,
                                               HTTPRequestException,
-                                              ScanMustStopException)
+                                              ScanMustStopException,
+                                              ScanMustStopOnUrlError)
 
 from w3af.core.data.db.history import HistoryItem
 from w3af.core.data.constants import severity

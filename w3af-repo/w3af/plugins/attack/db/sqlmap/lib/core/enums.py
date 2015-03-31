@@ -208,10 +208,10 @@ class PAYLOAD:
     SQLINJECTION = {
                         1: "boolean-based blind",
                         2: "error-based",
-                        3: "inline query",
+                        3: "UNION query",
                         4: "stacked queries",
                         5: "AND/OR time-based blind",
-                        6: "UNION query",
+                        6: "inline query",
                    }
 
     PARAMETER = {
@@ -250,10 +250,10 @@ class PAYLOAD:
     class TECHNIQUE:
         BOOLEAN = 1
         ERROR = 2
-        QUERY = 3
+        UNION = 3
         STACKED = 4
         TIME = 5
-        UNION = 6
+        QUERY = 6
 
     class WHERE:
         ORIGINAL = 1

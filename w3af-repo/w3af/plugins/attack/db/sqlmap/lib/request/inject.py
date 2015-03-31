@@ -476,7 +476,7 @@ def goStacked(expression, silent=False):
     query = agent.prefixQuery(";%s" % expression)
     query = agent.suffixQuery(query)
     payload = agent.payload(newValue=query)
-    Request.queryPage(payload, content=False, silent=silent, noteResponseTime=False, timeBasedCompare="SELECT" in (payload or "").upper())
+    Request.queryPage(payload, content=False, silent=silent, noteResponseTime=False, timeBasedCompare=True)
 
 def checkBooleanExpression(expression, expectingNone=True):
     return getValue(expression, expected=EXPECTED.BOOL, charsetType=CHARSET_TYPE.BINARY, suppressOutput=True, expectingNone=expectingNone)

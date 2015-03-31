@@ -39,7 +39,7 @@ class Ubuntu1204(Platform):
 
     GUI_SYSTEM_PACKAGES = CORE_SYSTEM_PACKAGES[:]
     GUI_SYSTEM_PACKAGES.extend(['graphviz', 'python-gtksourceview2',
-                                'python-gtk2', 'python-webkit'])
+                                'python-gtk2'])
 
     SYSTEM_PACKAGES = {CORE: CORE_SYSTEM_PACKAGES,
                        GUI: GUI_SYSTEM_PACKAGES}

@@ -73,7 +73,7 @@ class MacOSX(Platform):
 
     GUI_SYSTEM_PACKAGES = CORE_SYSTEM_PACKAGES[:]
     GUI_SYSTEM_PACKAGES.extend(['graphviz', 'py27-pygtksourceview',
-                                'py27-pygtk', 'py27-webkitgtk'])
+                                'py27-pygtk'])
 
     SYSTEM_PACKAGES = {CORE: CORE_SYSTEM_PACKAGES,
                        GUI: GUI_SYSTEM_PACKAGES}

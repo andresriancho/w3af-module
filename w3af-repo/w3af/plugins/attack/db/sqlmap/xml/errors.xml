@@ -18,7 +18,6 @@
         <error regexp="valid PostgreSQL result"/>
         <error regexp="Npgsql\."/>
         <error regexp="org\.postgresql\.util\.PSQLException"/>
-        <error regexp="ERROR:\s\ssyntax error at or near "/>
     </dbms>
 
     <!-- Microsoft SQL Server -->

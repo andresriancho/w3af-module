@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 import copy
 
-from w3af.core.data.constants.ignored_params import is_in_ignored_parameters
+from w3af.core.data.constants.ignored_params import IGNORED_PARAMETERS
 from w3af.core.data.db.disk_item import DiskItem
 
 
@@ -103,15 +103,7 @@ class Mutant(DiskItem):
         Shortcut!
         :return: Sets the current token to :value:
         """
-        token = self.get_token()
-
-        if token is not None:
-            return token.set_value(value)
-
-        dc = self.get_dc()
-        msg = 'Token is None at "%s" data container dump: "%s"'
-        args = (dc.__class__.__name__, dc)
-        raise AttributeError(msg % args)
+        return self.get_token().set_value(value)
 
     def __repr__(self):
         fmt = '<mutant-%s | %s | %s >'
@@ -214,7 +206,7 @@ class Mutant(DiskItem):
                 #
                 # Ignore the banned parameter names
                 #
-                if is_in_ignored_parameters(token.get_name()):
+                if token.get_name() in IGNORED_PARAMETERS:
                     continue
 
                 # Only fuzz the specified parameters (if any)

@@ -122,8 +122,7 @@ class HTMLParser(SGMLParser):
         Override to return the references parsed from the JavaScript code using
         regular expressions.
         """
-        parsed_urls = [url for tag, url in self._tag_and_url]
-        return parsed_urls, list(self._re_urls - set(parsed_urls))
+        return list(self._parsed_urls), list(self._re_urls - self._parsed_urls)
 
     def _form_elems_generic_handler(self, tag, attrs):
         side = 'inside' if self._inside_form else 'outside'
@@ -170,6 +169,7 @@ class HTMLParser(SGMLParser):
         form_params.set_action(action)
         form_params.set_form_encoding(form_encoding)
         self._forms.append(form_params)
+
 
         # Now I verify if there are any input tags that were found
         # outside the scope of a form tag

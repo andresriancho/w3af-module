@@ -36,8 +36,7 @@ class Fedora(Platform):
                             'libxslt-devel', 'openssl-devel', 'libffi-devel']
 
     GUI_SYSTEM_PACKAGES = CORE_SYSTEM_PACKAGES[:]
-    GUI_SYSTEM_PACKAGES.extend(['graphviz', 'pygtksourceview', 'pygtk2',
-                                'pywebkitgtk'])
+    GUI_SYSTEM_PACKAGES.extend(['graphviz', 'pygtksourceview', 'pygtk2'])
 
     SYSTEM_PACKAGES = {CORE: CORE_SYSTEM_PACKAGES,
                        GUI: GUI_SYSTEM_PACKAGES}
