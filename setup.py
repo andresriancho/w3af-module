@@ -1,27 +1,12 @@
 #!/usr/bin/env python
-import sys
 import os
+
+from setuptools import setup, find_packages
+from mod_utils.get_version import get_version
+from mod_utils.pip import get_pip_git_requirements, get_pip_requirements
 
 SETUPTOOLS_VERSION = '11.3.1'
 PROFILES_DIR = 'w3af-repo/profiles/'
-
-try:
-    from setuptools.version import __version__
-    assert __version__ == SETUPTOOLS_VERSION
-except (ImportError, AssertionError) as e:
-    print >> sys.stderr, (
-        "The required version of setuptools (==%s) is not available,"
-        " %s was found instead.\n"
-        "Please install a more recent version first, using 'pip install "
-        "--upgrade setuptools==%s'.") % (SETUPTOOLS_VERSION,
-                                         __version__,
-                                         SETUPTOOLS_VERSION)
-    sys.exit(2)
-
-from setuptools import setup, find_packages
-
-from mod_utils.get_version import get_version
-from mod_utils.pip import get_pip_git_requirements, get_pip_requirements
 
 
 setup(
@@ -41,7 +26,7 @@ setup(
     packages=find_packages(where='.', exclude=['tests*', 'mod_utils*']),
 
     # include everything in source control which lives inside one of the
-    # packages identified by find_packages, depends on setuptools_git==1.0
+    # packages identified by find_packages, depends on setuptools_git
     include_package_data=True,
 
     # include the data files, which don't live inside the directory
@@ -57,8 +42,8 @@ setup(
     test_suite='nose.collector',
 
     # Require at least the easiest PIP requirements from w3af
-    setup_requires=['setuptools==%s' % SETUPTOOLS_VERSION,
-                    "setuptools_git==1.0"],
+    setup_requires=['setuptools>=%s' % SETUPTOOLS_VERSION,
+                    "setuptools_git>=1.0"],
     install_requires=get_pip_requirements(),
     dependency_links=get_pip_git_requirements(),
 
