@@ -19,15 +19,19 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
+import os
 import unittest
+import multiprocessing
 
 from mock import patch, call, PropertyMock
 
+from w3af import ROOT_PATH
 from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.data.parsers.parser_cache import ParserCache
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.url.HTTPResponse import HTTPResponse
 from w3af.core.data.dc.headers import Headers
+from w3af.core.data.parsers.html import HTMLParser
 from w3af.core.data.parsers.tests.test_document_parser import (DelayedParser,
                                                                _build_http_response)
 
@@ -104,3 +108,67 @@ class TestParserCache(unittest.TestCase):
                 self.assertIn(call.debug(error), om_mock.mock_calls)
             else:
                 self.assertTrue(False)
+
+    def test_daemon_child(self):
+        """
+        Reproduces:
+
+            A "AssertionError" exception was found while running
+            crawl.web_spider on "Method: GET | http://domain:8000/". The
+            exception was: "daemonic processes are not allowed to have children"
+            at process.py:start():124. The scan will continue but some
+            vulnerabilities might not be identified.
+        """
+        queue = multiprocessing.Queue()
+
+        p = multiprocessing.Process(target=daemon_child, args=(queue,))
+        p.daemon = True
+        p.start()
+        p.join()
+
+        got_assertion_error = queue.get(timeout=10)
+        if got_assertion_error:
+            self.assertTrue(False, 'daemonic processes are not allowed'
+                                   ' to have children')
+
+    def test_non_daemon_child_ok(self):
+        """
+        Making sure that the previous failure is due to "p.daemon = True"
+        """
+        queue = multiprocessing.Queue()
+
+        p = multiprocessing.Process(target=daemon_child, args=(queue,))
+        # This is where we change stuff:
+        #p.daemon = True
+        p.start()
+        p.join()
+
+        got_assertion_error = queue.get(timeout=10)
+        if got_assertion_error:
+            self.assertTrue(False, 'daemonic processes are not allowed'
+                                   ' to have children')
+
+    def test_dictproxy_pickle_8748(self):
+        """
+        MaybeEncodingError - PicklingError: Can't pickle dictproxy #8748
+        https://github.com/andresriancho/w3af/issues/8748
+        """
+        html_body = os.path.join(ROOT_PATH, '/core/data/parsers/tests/data/',
+                                 'pickle-8748.htm')
+
+        url = URL('http://www.ensinosuperior.org.br/asesi.htm')
+        resp = HTTPResponse(200, html_body, self.headers, url, url)
+
+        parser = self.dpc.get_document_parser_for(resp)
+        self.assertIsInstance(parser._parser, HTMLParser)
+
+
+def daemon_child(queue):
+    dpc = ParserCache()
+
+    try:
+        dpc.start_workers()
+    except AssertionError:
+        queue.put(True)
+    else:
+        queue.put(False)

@@ -18,9 +18,11 @@ You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
+from w3af.core.controllers.exceptions import HTTPRequestException
 from w3af.core.controllers.output_manager import out
 from w3af.core.controllers.delay_detection.exact_delay import ExactDelay
 from w3af.core.controllers.delay_detection.delay_mixin import DelayMixIn
+from w3af.core.data.url.helpers import new_no_content_resp
 
 
 class ExactDelayController(DelayMixIn):
@@ -97,15 +99,15 @@ class ExactDelayController(DelayMixIn):
         return True, responses
 
     def _log_success(self, delay, response):
-        msg = '(Test id: %s) Successfully controlled HTTP response delay for'\
-              ' URL %s - parameter "%s" for %s seconds using %r, response'\
-              ' wait time was: %s seconds.'
+        msg = u'(Test id: %s) Successfully controlled HTTP response delay for'\
+              u' URL %s - parameter "%s" for %s seconds using %r, response'\
+              u' wait time was: %s seconds.'
         self._log_generic(msg, delay, response)
 
     def _log_failure(self, delay, response):
-        msg = '(Test id: %s) Failed to control HTTP response delay for'\
-              ' URL %s - parameter "%s" for %s seconds using %r, response'\
-              ' wait time was: %s seconds.'
+        msg = u'(Test id: %s) Failed to control HTTP response delay for'\
+              u' URL %s - parameter "%s" for %s seconds using %r, response'\
+              u' wait time was: %s seconds.'
         self._log_generic(msg, delay, response)
 
     def _log_generic(self, msg, delay, response):
@@ -116,7 +118,7 @@ class ExactDelayController(DelayMixIn):
     def delay_for(self, delay, original_wait_time):
         """
         Sends a request to the remote end that "should" delay the response in
-        :param seconds.
+        `delay` seconds.
 
         :param original_wait_time: The time that it takes to perform the
                                    request without adding any delays.
@@ -129,19 +131,27 @@ class ExactDelayController(DelayMixIn):
         mutant = self.mutant.copy()
         mutant.set_token_value(delay_str)
 
-        #    Send, it is important to notice that we don't use the cache
-        #    to avoid any interference
-        response = self.uri_opener.send_mutant(mutant, cache=False)
-
-        #    Test
+        # Set the upper and lower bounds
         delta = original_wait_time * self.DELTA_PERCENT
-        current_response_wait_time = response.get_wait_time()
 
         upper_bound = (delay * 2) + original_wait_time + delta
         lower_bound = original_wait_time + delay - delta
 
+        # Send, it is important to notice that we don't use the cache
+        # to avoid any interference
+        try:
+            response = self.uri_opener.send_mutant(mutant, cache=False,
+                                                   timeout=upper_bound)
+        except HTTPRequestException, hre:
+            # NOTE: In some cases where the remote web server timeouts we reach
+            #       this code section. The handling of that situation is done
+            #       with the new_no_content_resp() below.
+            return False, new_no_content_resp(self.mutant.get_uri())
+
+        # Test if the delay worked
+        current_response_wait_time = response.get_wait_time()
         args = (id(self), upper_bound, current_response_wait_time, lower_bound)
-        out.debug('(Test id: %s) %s > %s > %s' % args)
+        out.debug(u'(Test id: %s) %s > %s > %s' % args)
 
         if upper_bound > current_response_wait_time > lower_bound:
             return True, response

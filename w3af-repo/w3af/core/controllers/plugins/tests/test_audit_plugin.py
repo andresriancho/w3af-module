@@ -85,7 +85,8 @@ class TestAuditPlugin(unittest.TestCase):
         freq = FuzzableRequest(url)
 
         plugin_inst = self.w3af.plugins.get_plugin_inst('audit', 'sqli')
-        plugin_inst._uri_opener.settings.set_timeout(1)
+        plugin_inst._uri_opener.settings.set_configured_timeout(1)
+        plugin_inst._uri_opener.clear_timeout()
 
         # We expect the server to timeout and the response to be a 204
         resp = plugin_inst.get_original_response(freq)
@@ -116,18 +117,19 @@ class TestAuditPlugin(unittest.TestCase):
 
         mod = 'w3af.core.controllers.plugins.audit_plugin.%s'
 
+        mock_plugin_timeout = 2
+        msg = '[timeout] The "%s" plugin took more than %s seconds to'\
+              ' complete the analysis of "%s", killing it!'
+
+        error = msg % (plugin_inst.get_name(),
+                       mock_plugin_timeout,
+                       freq.get_url())
+
         with patch(mod % 'om.out') as om_mock,\
              patch(mod % 'AuditPlugin.PLUGIN_TIMEOUT', new_callable=PropertyMock) as timeout_mock:
 
-            timeout_mock.return_value = 1
+            timeout_mock.return_value = mock_plugin_timeout
             plugin_inst.audit_with_copy(freq, None)
-
-            msg = '[timeout] The "%s" plugin took more than %s seconds to'\
-                  ' complete the analysis of "%s", killing it!'
-
-            error = msg % (plugin_inst.get_name(),
-                           plugin_inst.PLUGIN_TIMEOUT,
-                           freq.get_url())
 
             self.assertIn(call.debug(error), om_mock.mock_calls)
 

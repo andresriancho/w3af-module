@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2014 sqlmap developers (http://sqlmap.org/)
+Copyright (c) 2006-2015 sqlmap developers (http://sqlmap.org/)
 See the file 'doc/COPYING' for copying permission
 """
 
@@ -14,6 +14,7 @@ import hashlib
 import httplib
 import inspect
 import json
+import locale
 import logging
 import ntpath
 import os
@@ -117,7 +118,6 @@ from lib.core.settings import LARGE_OUTPUT_THRESHOLD
 from lib.core.settings import MIN_ENCODED_LEN_CHECK
 from lib.core.settings import MIN_TIME_RESPONSES
 from lib.core.settings import MIN_VALID_DELAYED_RESPONSE
-from lib.core.settings import ML
 from lib.core.settings import NETSCAPE_FORMAT_HEADER_COOKIES
 from lib.core.settings import NULL
 from lib.core.settings import PARAMETER_AMP_MARKER
@@ -438,10 +438,9 @@ class Backend:
 
         This functions is called to:
 
-        1. Sort the tests, getSortedInjectionTests() - detection phase.
-        2. Ask user whether or not skip specific DBMS tests in detection phase,
+        1. Ask user whether or not skip specific DBMS tests in detection phase,
            lib/controller/checks.py - detection phase.
-        3. Sort the fingerprint of the DBMS, lib/controller/handler.py -
+        2. Sort the fingerprint of the DBMS, lib/controller/handler.py -
            fingerprint phase.
         """
 
@@ -449,6 +448,13 @@ class Backend:
 
     @staticmethod
     def getIdentifiedDbms():
+        """
+        This functions is called to:
+
+        1. Sort the tests, getSortedInjectionTests() - detection phase.
+        2. Etc.
+        """
+
         dbms = None
 
         if not kb:
@@ -456,13 +462,13 @@ class Backend:
         elif Backend.getForcedDbms() is not None:
             dbms = Backend.getForcedDbms()
         elif Backend.getDbms() is not None:
-            dbms = kb.dbms
-        elif conf.get("dbms"):
-            dbms = conf.dbms
-        elif Backend.getErrorParsedDBMSes():
-            dbms = unArrayizeValue(Backend.getErrorParsedDBMSes())
+            dbms = Backend.getDbms()
         elif kb.get("injection") and kb.injection.dbms:
             dbms = unArrayizeValue(kb.injection.dbms)
+        elif Backend.getErrorParsedDBMSes():
+            dbms = unArrayizeValue(Backend.getErrorParsedDBMSes())
+        elif conf.get("dbms"):
+            dbms = conf.get("dbms")
 
         return aliasToDbmsEnum(dbms)
 
@@ -544,7 +550,6 @@ def paramToDict(place, parameters=None):
     if place in conf.parameters and not parameters:
         parameters = conf.parameters[place]
 
-    parameters = parameters.replace(", ", ",")
     parameters = re.sub(r"&(\w{1,4});", r"%s\g<1>%s" % (PARAMETER_AMP_MARKER, PARAMETER_SEMICOLON_MARKER), parameters)
     if place == PLACE.COOKIE:
         splitParams = parameters.split(conf.cookieDel or DEFAULT_COOKIE_DELIMITER)
@@ -582,7 +587,7 @@ def paramToDict(place, parameters=None):
                         warnMsg += "so sqlmap could be able to run properly"
                         logger.warn(warnMsg)
 
-                        message = "are you sure you want to continue? [y/N] "
+                        message = "are you really sure that you want to continue (sqlmap could have problems)? [y/N] "
                         test = readInput(message, default="N")
                         if test[0] not in ("y", "Y"):
                             raise SqlmapSilentQuitException
@@ -1086,6 +1091,7 @@ def setPaths():
     paths.SQLMAP_UDF_PATH = os.path.join(paths.SQLMAP_ROOT_PATH, "udf")
     paths.SQLMAP_XML_PATH = os.path.join(paths.SQLMAP_ROOT_PATH, "xml")
     paths.SQLMAP_XML_BANNER_PATH = os.path.join(paths.SQLMAP_XML_PATH, "banner")
+    paths.SQLMAP_XML_PAYLOADS_PATH = os.path.join(paths.SQLMAP_XML_PATH, "payloads")
 
     _ = os.path.join(os.path.expanduser("~"), ".sqlmap")
     paths.SQLMAP_OUTPUT_PATH = getUnicode(paths.get("SQLMAP_OUTPUT_PATH", os.path.join(_, "output")), encoding=sys.getfilesystemencoding())
@@ -1106,7 +1112,7 @@ def setPaths():
     paths.USER_AGENTS = os.path.join(paths.SQLMAP_TXT_PATH, "user-agents.txt")
     paths.WORDLIST = os.path.join(paths.SQLMAP_TXT_PATH, "wordlist.zip")
     paths.ERRORS_XML = os.path.join(paths.SQLMAP_XML_PATH, "errors.xml")
-    paths.PAYLOADS_XML = os.path.join(paths.SQLMAP_XML_PATH, "payloads.xml")
+    paths.BOUNDARIES_XML = os.path.join(paths.SQLMAP_XML_PATH, "boundaries.xml")
     paths.LIVE_TESTS_XML = os.path.join(paths.SQLMAP_XML_PATH, "livetests.xml")
     paths.QUERIES_XML = os.path.join(paths.SQLMAP_XML_PATH, "queries.xml")
     paths.GENERIC_XML = os.path.join(paths.SQLMAP_XML_BANNER_PATH, "generic.xml")
@@ -1296,13 +1302,13 @@ def parseTargetUrl():
     conf.url = getUnicode("%s://%s:%d%s" % (conf.scheme, ("[%s]" % conf.hostname) if conf.ipv6 else conf.hostname, conf.port, conf.path))
     conf.url = conf.url.replace(URI_QUESTION_MARKER, '?')
 
-    if not conf.referer and intersect(REFERER_ALIASES, conf.testParameter, True):
+    if not conf.referer and (intersect(REFERER_ALIASES, conf.testParameter, True) or conf.level >= 3):
         debugMsg = "setting the HTTP Referer header to the target URL"
         logger.debug(debugMsg)
         conf.httpHeaders = filter(lambda (key, value): key != HTTP_HEADER.REFERER, conf.httpHeaders)
         conf.httpHeaders.append((HTTP_HEADER.REFERER, conf.url))
 
-    if not conf.host and intersect(HOST_ALIASES, conf.testParameter, True):
+    if not conf.host and (intersect(HOST_ALIASES, conf.testParameter, True) or conf.level >= 5):
         debugMsg = "setting the HTTP Host header to the target URL"
         logger.debug(debugMsg)
         conf.httpHeaders = filter(lambda (key, value): key != HTTP_HEADER.HOST, conf.httpHeaders)
@@ -1557,6 +1563,22 @@ def normalizePath(filepath):
         retVal = retVal.strip("\r\n")
         retVal = ntpath.normpath(retVal) if isWindowsDriveLetterPath(retVal) else posixpath.normpath(retVal)
 
+    return retVal
+
+def safeExpandUser(filepath):
+    """
+    Patch for a Python Issue18171 (http://bugs.python.org/issue18171)
+    """
+
+    retVal = filepath
+
+    try:
+        retVal = os.path.expanduser(filepath)
+    except UnicodeDecodeError:
+        _ = locale.getdefaultlocale()
+        retVal = getUnicode(os.path.expanduser(filepath.encode(_[1] if _ and len(_) > 1 else UNICODE_ENCODING)))
+
+    print retVal
     return retVal
 
 def safeStringFormat(format_, params):
@@ -2807,14 +2829,14 @@ def getSortedInjectionTests():
             retVal = SORT_ORDER.LAST
 
         elif 'details' in test and 'dbms' in test.details:
-            if test.details.dbms in Backend.getErrorParsedDBMSes():
+            if intersect(test.details.dbms, Backend.getIdentifiedDbms()):
                 retVal = SORT_ORDER.SECOND
             else:
                 retVal = SORT_ORDER.THIRD
 
         return retVal
 
-    if Backend.getErrorParsedDBMSes():
+    if Backend.getIdentifiedDbms():
         retVal = sorted(retVal, key=priorityFunction)
 
     return retVal
@@ -2898,7 +2920,7 @@ def unhandledExceptionMessage():
     errMsg = "unhandled exception occurred in %s. It is recommended to retry your " % VERSION_STRING
     errMsg += "run with the latest development version from official GitHub "
     errMsg += "repository at '%s'. If the exception persists, please open a new issue " % GIT_PAGE
-    errMsg += "at '%s' (or less preferably send by e-mail to '%s') " % (ISSUES_PAGE, ML)
+    errMsg += "at '%s' " % ISSUES_PAGE
     errMsg += "with the following text and any other information required to "
     errMsg += "reproduce the bug. The "
     errMsg += "developers will try to reproduce the bug, fix it accordingly "
@@ -2970,6 +2992,8 @@ def createGithubIssue(errMsg, excMsg):
             warnMsg = "something went wrong while creating a Github issue"
             if ex:
                 warnMsg += " ('%s')" % ex
+            if "Unauthorized" in warnMsg:
+                warnMsg += ". Please update to the latest revision"
             logger.warn(warnMsg)
 
 def maskSensitiveData(msg):
@@ -2986,9 +3010,9 @@ def maskSensitiveData(msg):
             retVal = retVal.replace(value, '*' * len(value))
 
     if not conf.get("hostname"):
-        match = re.search(r"(?i)sqlmap.+(-u|--url)\s+([^ ]+)", retVal)
+        match = re.search(r"(?i)sqlmap.+(-u|--url)(\s+|=)([^ ]+)", retVal)
         if match:
-            retVal = retVal.replace(match.group(2), '*' * len(match.group(2)))
+            retVal = retVal.replace(match.group(3), '*' * len(match.group(3)))
 
 
     if getpass.getuser():
@@ -3279,7 +3303,10 @@ def expandMnemonics(mnemonics, parser, args):
                     if opt.startswith(name):
                         options[opt] = option
 
-            if name in options:
+            if not options:
+                warnMsg = "mnemonic '%s' can't be resolved" % name
+                logger.warn(warnMsg)
+            elif name in options:
                 found = name
                 debugMsg = "mnemonic '%s' resolved to %s). " % (name, found)
                 logger.debug(debugMsg)
@@ -3289,7 +3316,8 @@ def expandMnemonics(mnemonics, parser, args):
                 warnMsg += "Resolved to shortest of those ('%s')" % found
                 logger.warn(warnMsg)
 
-            found = options[found]
+            if found:
+                found = options[found]
         else:
             found = pointer.current[0]
             debugMsg = "mnemonic '%s' resolved to %s). " % (name, found)
@@ -3356,6 +3384,8 @@ def randomizeParameterValue(value):
     """
 
     retVal = value
+
+    value = re.sub(r"%[0-9a-fA-F]{2}", "", value)
 
     for match in re.finditer('[A-Z]+', value):
         retVal = retVal.replace(match.group(), randomStr(len(match.group())).upper())

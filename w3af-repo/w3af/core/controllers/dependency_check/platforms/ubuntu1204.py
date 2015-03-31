@@ -28,17 +28,18 @@ from ..requirements import CORE, GUI
 
 class Ubuntu1204(Platform):
     SYSTEM_NAME = 'Ubuntu 12.04'
-    PKG_MANAGER_CMD = 'sudo apt-get install'
+    PKG_MANAGER_CMD = 'sudo apt-get -y install'
     PIP_CMD = 'pip'
 
     CORE_SYSTEM_PACKAGES = ['python-pip', 'python2.7-dev',
                             'python-setuptools', 'build-essential',
                             'libsqlite3-dev', 'libssl-dev', 'git',
-                            'libxml2-dev', 'libxslt1-dev', 'libyaml-dev']
+                            'libxml2-dev', 'libxslt1-dev', 'libyaml-dev',
+                            'libffi-dev']
 
     GUI_SYSTEM_PACKAGES = CORE_SYSTEM_PACKAGES[:]
     GUI_SYSTEM_PACKAGES.extend(['graphviz', 'python-gtksourceview2',
-                                'python-gtk2'])
+                                'python-gtk2', 'python-webkit'])
 
     SYSTEM_PACKAGES = {CORE: CORE_SYSTEM_PACKAGES,
                        GUI: GUI_SYSTEM_PACKAGES}

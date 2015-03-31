@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2014 sqlmap developers (http://sqlmap.org/)
+Copyright (c) 2006-2015 sqlmap developers (http://sqlmap.org/)
 See the file 'doc/COPYING' for copying permission
 """
 
@@ -28,7 +28,10 @@ from lib.core.common import getUnicode
 from lib.core.common import hashDBRetrieve
 from lib.core.common import hashDBWrite
 from lib.core.common import intersect
+from lib.core.common import isListLike
 from lib.core.common import parseTargetUrl
+from lib.core.common import popValue
+from lib.core.common import pushValue
 from lib.core.common import randomStr
 from lib.core.common import readInput
 from lib.core.common import safeCSValue
@@ -189,7 +192,9 @@ def _randomFillBlankFields(value):
     return retVal
 
 def _saveToHashDB():
-    injections = hashDBRetrieve(HASHDB_KEYS.KB_INJECTIONS, True) or []
+    injections = hashDBRetrieve(HASHDB_KEYS.KB_INJECTIONS, True)
+    if not isListLike(injections):
+        injections = []
     injections.extend(_ for _ in kb.injections if _ and _.place is not None and _.parameter is not None)
 
     _ = dict()
@@ -369,8 +374,7 @@ def start():
             if not checkConnection(suppressOutput=conf.forms) or not checkString() or not checkRegexp():
                 continue
 
-            if conf.checkWaf:
-                checkWaf()
+            checkWaf()
 
             if conf.identifyWaf:
                 identifyWaf()
@@ -486,6 +490,10 @@ def start():
                         kb.testedParams.add(paramKey)
 
                         if testSqlInj:
+                            if place == PLACE.COOKIE:
+                                pushValue(kb.mergeCookies)
+                                kb.mergeCookies = False
+
                             check = heuristicCheckSqlInjection(place, parameter)
 
                             if check != HEURISTIC_TEST.POSITIVE:
@@ -520,6 +528,9 @@ def start():
                                 warnMsg = "%s parameter '%s' is not " % (paramType, parameter)
                                 warnMsg += "injectable"
                                 logger.warn(warnMsg)
+
+                            if place == PLACE.COOKIE:
+                                kb.mergeCookies = popValue()
 
             if len(kb.injections) == 0 or (len(kb.injections) == 1 and kb.injections[0].place is None):
                 if kb.vainRun and not conf.multipleTargets:

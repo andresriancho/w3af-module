@@ -20,8 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
 import sys
-import threading
 import Queue
+import threading
 
 from itertools import repeat
 from tblib.decorators import Error
@@ -36,6 +36,7 @@ from w3af.core.controllers.misc.decorators import memoized
 from w3af.core.controllers.threads.decorators import apply_with_return_error
 from w3af.core.data.options.option_list import OptionList
 from w3af.core.data.url.helpers import new_no_content_resp
+from w3af.core.data.kb.info_set import InfoSet
 
 
 class Plugin(Configurable):
@@ -143,7 +144,19 @@ class Plugin(Configurable):
 
         if added_to_kb:
             om.out.report_finding(info)
-        
+
+    def kb_append_uniq_group(self, location_a, location_b, info,
+                             group_klass=InfoSet):
+        """
+        kb.kb.append_uniq_group a vulnerability to the KB
+        """
+        info_set, created = kb.kb.append_uniq_group(location_a, location_b,
+                                                    info,
+                                                    group_klass=group_klass)
+
+        if created:
+            om.out.report_finding(info_set.first_info)
+
     def kb_append(self, location_a, location_b, info):
         """
         kb.kb.append a vulnerability to the KB
@@ -227,6 +240,32 @@ class UrlOpenerProxy(object):
     """
     Proxy class for urlopener objects such as ExtendedUrllib instances.
     """
+    # I want to list all the methods which I do NOT want to wrap, I have to
+    # do it this way since the extended_urllib.py also implements __getattr__
+    # to provide PUT, PATCH, etc. methods.
+    #
+    # These methods won't be wrapped, mostly because they either:
+    #   * Don't return an HTTPResponse
+    #   * Don't raise HTTPRequestException
+    #
+    # I noticed this issue when #8705 was reported
+    # https://github.com/andresriancho/w3af/issues/8705
+    NO_WRAPPER_FOR = {'send_clean',
+                      'clear',
+                      'end',
+                      'restart',
+                      'get_headers',
+                      'get_cookies',
+                      'get_remote_file_size',
+                      'add_headers',
+                      'assert_allowed_proto',
+                      '_handle_send_socket_error',
+                      '_handle_send_urllib_error',
+                      '_handle_send_success',
+                      '_handle_error_on_increment'
+                      '_generic_send_error_handler',
+                      '_increment_global_error_count',
+                      '_log_successful_response'}
 
     def __init__(self, url_opener, plugin_inst):
         self._url_opener = url_opener
@@ -234,7 +273,9 @@ class UrlOpenerProxy(object):
 
     def __getattr__(self, name):
 
-        def meth(*args, **kwargs):
+        attr = getattr(self._url_opener, name)
+
+        def url_opener_proxy(*args, **kwargs):
             try:
                 return attr(*args, **kwargs)
             except HTTPRequestException, hre:
@@ -262,9 +303,10 @@ class UrlOpenerProxy(object):
 
                 return result
 
-        attr = getattr(self._url_opener, name)
-
-        if callable(attr):
-            return meth
+        if name in self.NO_WRAPPER_FOR:
+            # See note above on NO_WRAPPER_FOR
+            return attr
+        elif callable(attr):
+            return url_opener_proxy
         else:
             return attr

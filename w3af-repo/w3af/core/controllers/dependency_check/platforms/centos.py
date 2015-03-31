@@ -34,10 +34,11 @@ class CentOS(Fedora):
                             'libsqlite3x-devel', 'gcc-c++', 'gcc', 'make',
                             'git', 'libxml2-devel', 'libxslt-devel',
                             'pyOpenSSL', 'openssl-devel', 'libcom_err-devel',
-                            'libcom_err']
+                            'libcom_err', 'libffi-devel']
 
     GUI_SYSTEM_PACKAGES = CORE_SYSTEM_PACKAGES[:]
-    GUI_SYSTEM_PACKAGES.extend(['graphviz', 'gtksourceview2', 'pygtksourceview'])
+    GUI_SYSTEM_PACKAGES.extend(['graphviz', 'gtksourceview2', 'pygtksourceview',
+                                'pywebkitgtk'])
 
     SYSTEM_PACKAGES = {CORE: CORE_SYSTEM_PACKAGES,
                        GUI: GUI_SYSTEM_PACKAGES}

@@ -42,7 +42,7 @@ class TestFindBackdoor(PluginTest):
     target_url = 'http://%s/' % domain
 
     MOCK_RESPONSES = [MockResponse('/', 'Hello world'),
-                      MockResponse('/c99shell.php', 'cmd shell')]
+                      MockResponse('/c99shell.php', '<html> c99shell</title>')]
 
     def test_find_backdoor(self):
         cfg = run_configs['base']
@@ -70,7 +70,7 @@ class TestFalsePositiveFindBackdoor2017_1(PluginTest):
 
     MOCK_RESPONSES = [MockResponse(re.compile('(.*)'), APACHE_403, status=403)]
 
-    def test_2017_false_positive_backdoor(self):
+    def test_2017_false_positive_backdoor_1(self):
         cfg = run_configs['base']
         self._scan(self.target_url, cfg['plugins'])
 
@@ -86,11 +86,12 @@ class TestFalsePositiveFindBackdoor2017_2(PluginTest):
     APACHE_403 = get_apache_403('/forbidden/foobar', domain)
 
     MOCK_RESPONSES = [MockResponse('/', '<a href="/forbidden/">403</a>'),
-                      MockResponse('/forbidden/c99shell.php', 'cmd shell'),
+                      MockResponse('/forbidden/c99shell.php',
+                                   '<HTML><title>c99shell</title>'),
                       MockResponse(re.compile('http://.*?/forbidden/.*'),
                                    APACHE_403, status=403)]
 
-    def test_2017_false_positive_backdoor(self):
+    def test_2017_false_positive_backdoor_2(self):
         cfg = run_configs['crawl']
         self._scan(self.target_url, cfg['plugins'])
 
@@ -98,30 +99,3 @@ class TestFalsePositiveFindBackdoor2017_2(PluginTest):
 
         self.assertEqual(len(vulns), 1, vulns)
 
-
-class TestFalsePositiveFindBackdoorNixWizardEmail(PluginTest):
-    target_url = 'http://httpretty-mock/'
-
-    MOCK_RESPONSES = [MockResponse('/cmd.php', '<input name="cmd"/>')]
-
-    def test_false_positive_backdoor(self):
-        cfg = run_configs['crawl']
-        self._scan(self.target_url, cfg['plugins'])
-
-        vulns = self.kb.get('find_backdoors', 'backdoors')
-
-        self.assertEqual(len(vulns), 1, vulns)
-
-
-class TestFalsePositiveFindBackdoorNixWizardEmailNot(PluginTest):
-    target_url = 'http://httpretty-mock/'
-
-    MOCK_RESPONSES = [MockResponse('/cmd.php', '<input name="c1m2d"/>')]
-
-    def test_false_positive_backdoor(self):
-        cfg = run_configs['crawl']
-        self._scan(self.target_url, cfg['plugins'])
-
-        vulns = self.kb.get('find_backdoors', 'backdoors')
-
-        self.assertEqual(len(vulns), 0, vulns)

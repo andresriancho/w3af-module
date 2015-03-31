@@ -40,11 +40,13 @@ from w3af.core.controllers.w3afCore import w3afCore
 from w3af.core.controllers.misc.homeDir import W3AF_LOCAL_PATH
 from w3af.core.controllers.misc.decorators import retry
 
+from w3af.core.data.fuzzer.utils import rand_alnum
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_types import URL_LIST
 from w3af.core.data.options.option_list import OptionList
 from w3af.core.data.parsers.url import URL
-from w3af.core.data.kb.read_shell import ReadShell 
+from w3af.core.data.kb.read_shell import ReadShell
+from w3af.core.data.kb.info_set import InfoSet
 
 os.chdir(W3AF_LOCAL_PATH)
 RE_COMPILE_TYPE = type(re.compile(''))
@@ -101,12 +103,26 @@ class PluginTest(unittest.TestCase):
     def tearDown(self):
         self.w3afcore.quit()
         self.kb.cleanup()
+        self.assert_all_get_desc_work()
 
         if self.MOCK_RESPONSES:
             httpretty.disable()
             httpretty.reset()
 
+    def assert_all_get_desc_work(self):
+        """
+        Since the InfoSet does some custom rendering at get_desc(), I want to
+        make sure that any InfoSets render properly, some of my tests might not
+        be calling it implicitly, so we call it here.
+        """
+        for info in self.kb.get_all_findings():
+            if isinstance(info, InfoSet):
+                info.get_desc()
+
     def assertAllVulnNamesEqual(self, vuln_name, vulns):
+        if not vulns:
+            self.assertTrue(False, 'No vulnerabilities found to match')
+
         for vuln in vulns:
             self.assertEqual(vuln.get_name(), vuln_name)
 
@@ -120,7 +136,7 @@ class PluginTest(unittest.TestCase):
         )
 
     def tokenize_kb_vulns(self):
-        all_info = self.kb.get_all_infos()
+        all_info = self.kb.get_all_findings()
         info_tokens = set()
 
         for info in all_info:
@@ -335,8 +351,9 @@ class PluginTest(unittest.TestCase):
         # directory (when run on circle) and /tmp/ when run on our
         # workstation
         output_dir = os.environ.get('CIRCLE_ARTIFACTS', tempfile.gettempdir())
-        text_output = os.path.join(output_dir, 'output.txt')
-        http_output = os.path.join(output_dir, 'output-http.txt')
+        rnd = rand_alnum(6)
+        text_output = os.path.join(output_dir, 'output-%s.txt' % rnd)
+        http_output = os.path.join(output_dir, 'output-http-%s.txt' % rnd)
 
         text_file_inst = self.w3afcore.plugins.get_plugin_inst(ptype, pname)
 
@@ -344,6 +361,8 @@ class PluginTest(unittest.TestCase):
         default_opts['output_file'].set_value(text_output)
         default_opts['http_output_file'].set_value(http_output)
         default_opts['verbose'].set_value(True)
+
+        print('Logging to %s' % text_output)
 
         self.w3afcore.plugins.set_plugin_options(ptype, pname, default_opts)
 
@@ -374,6 +393,7 @@ class PluginConfig(object):
 
 class ReadExploitTest(PluginTest):
     def _exploit_vuln(self, vuln_to_exploit_id, exploit_plugin):
+        self.w3afcore.uri_opener.set_exploit_mode(True)
         plugin = self.w3afcore.plugins.get_plugin_inst('attack', exploit_plugin)
 
         self.assertTrue(plugin.can_exploit(vuln_to_exploit_id))
@@ -386,7 +406,7 @@ class ReadExploitTest(PluginTest):
         # Now I start testing the shell itself!
         #
         shell = exploit_result[0]
-        etc_passwd = shell.generic_user_input('read', ['/etc/passwd',])
+        etc_passwd = shell.generic_user_input('read', ['/etc/passwd'])
         self.assertIn('root', etc_passwd)
         self.assertIn('/bin/bash', etc_passwd)
 
@@ -415,9 +435,9 @@ class ExecExploitTest(ReadExploitTest):
         shell = super(ExecExploitTest, self)._exploit_vuln(vuln_to_exploit_id,
                                                            exploit_plugin)
         
-        etc_passwd = shell.generic_user_input('e', ['cat', '/etc/passwd',])
-        self.assertTrue('root' in etc_passwd)
-        self.assertTrue('/bin/bash' in etc_passwd)
+        etc_passwd = shell.generic_user_input('e', ['cat', '/etc/passwd'])
+        self.assertIn('root', etc_passwd)
+        self.assertIn('/bin/bash', etc_passwd)
         
         _help = shell.help(None)
         self.assertIn('execute', _help)
@@ -488,7 +508,12 @@ class MockResponse(object):
         assert isinstance(url, (basestring, RE_COMPILE_TYPE))
 
     def __repr__(self):
-        return '<MockResponse (%s|%s)>' % (self.url, self.status)
+        if isinstance(self.url, RE_COMPILE_TYPE):
+            match = 're:"%s"' % self.url.pattern
+        else:
+            match = self.url
+
+        return '<MockResponse (%s|%s)>' % (match, self.status)
 
     def get_body(self, method, uri, headers):
         """

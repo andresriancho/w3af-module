@@ -24,19 +24,24 @@ from __future__ import with_statement, print_function
 import os
 import zlib
 import signal
+import atexit
+import threading
 import multiprocessing
 
-from darts.lib.utils.lru import LRUDict
+from darts.lib.utils.lru import SynchronizedLRUDict
 from tblib.decorators import Error
 
 import w3af.core.controllers.output_manager as om
 
+from w3af.core.controllers.profiling import start_profiling_no_core
 from w3af.core.controllers.threads.process_pool import ProcessPool
+from w3af.core.controllers.threads.is_main_process import is_main_process
 from w3af.core.controllers.output_manager import log_sink_factory
-from w3af.core.data.parsers.document_parser import DocumentParser
 from w3af.core.controllers.exceptions import BaseFrameworkException
 from w3af.core.controllers.ci.detect import is_running_on_ci
 from w3af.core.controllers.threads.decorators import apply_with_return_error
+from w3af.core.controllers.profiling.core_stats import core_profiling_is_enabled
+from w3af.core.data.parsers.document_parser import DocumentParser
 
 
 class ParserCache(object):
@@ -48,19 +53,18 @@ class ParserCache(object):
     LRU_LENGTH = 40
     MAX_CACHEABLE_BODY_LEN = 1024 * 1024
     PARSER_TIMEOUT = 60 # in seconds
-    DEBUG = False
+    DEBUG = core_profiling_is_enabled()
     MAX_WORKERS = 2 if is_running_on_ci() else (multiprocessing.cpu_count() / 2) or 1
 
     def __init__(self):
-        self._cache = LRUDict(self.LRU_LENGTH)
+        self._cache = SynchronizedLRUDict(self.LRU_LENGTH)
         self._pool = None
         self._processes = None
         self._parser_finished_events = {}
+        self._start_lock = threading.RLock()
 
         # These are here for debugging:
-        self._archive = set()
         self._from_LRU = 0.0
-        self._calculated_more_than_once = 0.0
         self._total = 0.0
 
     def start_workers(self):
@@ -68,18 +72,19 @@ class ParserCache(object):
         Start the pool and workers
         :return: The pool instance
         """
-        if self._pool is None:
-            # Keep track of which pid is processing which http response
-            # pylint: disable=E1101
-            self._processes = manager.dict()
-            # pylint: enable=E1101
+        with self._start_lock:
+            if self._pool is None:
+                # Keep track of which pid is processing which http response
+                # pylint: disable=E1101
+                self._processes = manager.dict()
+                # pylint: enable=E1101
 
-            # The pool
-            log_queue = om.manager.get_in_queue()
-            self._pool = ProcessPool(self.MAX_WORKERS,
-                                     maxtasksperchild=25,
-                                     initializer=log_sink_factory,
-                                     initargs=(log_queue,))
+                # The pool
+                log_queue = om.manager.get_in_queue()
+                self._pool = ProcessPool(self.MAX_WORKERS,
+                                         maxtasksperchild=25,
+                                         initializer=init_worker,
+                                         initargs=(log_queue,))
 
         return self._pool
 
@@ -93,10 +98,36 @@ class ParserCache(object):
             self._pool = None
             self._processes = None
 
-        if self.DEBUG:
-            print('parser_cache LRU rate: %s' % (self._from_LRU / self._total))
-            print('parser_cache re-calculation rate: %s' % (self._calculated_more_than_once / self._total))
-            print('parser_cache size: %s' % self.LRU_LENGTH)
+        # Make sure the parsers clear all resources
+        for parser in self._cache.itervalues():
+            parser.clear()
+
+        # We don't need the parsers anymore
+        self._cache.clear()
+
+    def get_hit_rate(self):
+        """
+        :note: Only returns useful information if debugging is enabled
+        """
+        try:
+            return self._from_LRU / self._total
+        except ZeroDivisionError:
+            return None
+
+    def get_max_lru_items(self):
+        """
+        :note: Only returns useful information if debugging is enabled
+        """
+        return self.LRU_LENGTH
+
+    def get_current_lru_items(self):
+        """
+        :note: Only returns useful information if debugging is enabled
+        """
+        return len(self._cache)
+
+    def get_total_queries(self):
+        return self._total
 
     def get_cache_key(self, http_response):
         """
@@ -120,6 +151,7 @@ class ParserCache(object):
 
         _to_hash = body_str + uri_str
 
+        # Added adler32 after finding some hash() collisions in builds
         hash_string = str(hash(_to_hash))
         hash_string += str(zlib.adler32(_to_hash))
         return hash_string
@@ -150,11 +182,15 @@ class ParserCache(object):
         event = multiprocessing.Event()
         self._parser_finished_events[hash_string] = event
 
+        # Start the worker processes if needed
+        self.start_workers()
+
         apply_args = (ProcessDocumentParser,
                       http_response,
                       self._processes,
                       hash_string)
 
+        # Push the task to the workers
         result = self._pool.apply_async(apply_with_return_error, (apply_args,))
 
         try:
@@ -188,9 +224,20 @@ class ParserCache(object):
             # Just remove it so it doesn't use memory
             self._processes.pop(hash_string, None)
 
-            # Let other know that we're done
-            event = self._parser_finished_events.pop(hash_string)
-            event.set()
+            # Let other threads know that we're done
+            event = self._parser_finished_events.pop(hash_string, None)
+
+            if event is not None:
+                # There is a really rare race condition where more than one
+                # thread calls _parse_http_response_in_worker and queues the
+                # same hash_string for processing, since it's so rare I believe
+                # the best way to fix it is to:
+                #
+                #   * Avoid adding a lock
+                #   * Accept that in these rare edge case we'll waste some CPU
+                #
+                # https://circleci.com/gh/andresriancho/w3af/1354
+                event.set()
 
         return parser_output
 
@@ -201,7 +248,6 @@ class ParserCache(object):
         :param http_response: The http response instance
         :return: An instance of DocumentParser
         """
-        self.start_workers()
         hash_string = self.get_cache_key(http_response)
 
         if not self.should_cache(http_response):
@@ -221,39 +267,30 @@ class ParserCache(object):
                 msg = 'There is no parser for "%s".' % http_response.get_url()
                 raise BaseFrameworkException(msg)
 
+        # metric increase
+        self._total += 1
+
         parser = self._cache.get(hash_string, None)
         if parser is not None:
-            self._debug_in_cache(hash_string)
+            self._debug_handle_cache_hit(hash_string)
             return parser
         else:
+            self._debug_handle_cache_miss(hash_string)
+
             # Create a new instance of DocumentParser, add it to the cache
             parser = self._parse_http_response_in_worker(http_response,
                                                          hash_string)
             self._cache[hash_string] = parser
-            self._debug_not_in_cache(hash_string)
             return parser
 
-    def _debug_not_in_cache(self, hash_string):
+    def _debug_handle_cache_hit(self, hash_string):
         if self.DEBUG:
-            self._total += 1
+            om.out.debug('[parser_cache] Hit for %s' % hash_string)
+            self._from_LRU += 1
 
-            if hash_string in self._archive:
-                msg = '[%s] calculated and was in archive. (bad)'
-                print(msg % hash_string)
-                self._calculated_more_than_once += 1
-            else:
-                msg = '[%s] calculated for the first time and cached. (good)'
-                print(msg % hash_string)
-                self._archive.add(hash_string)
-
-    def _debug_in_cache(self, hash_string):
+    def _debug_handle_cache_miss(self, hash_string):
         if self.DEBUG:
-            self._total += 1
-
-            if hash_string in self._archive:
-                msg = '[%s] return from LRU and was in archive. (good)'
-                print(msg % hash_string)
-                self._from_LRU += 1
+            om.out.debug('[parser_cache] Miss for %s' % hash_string)
 
 
 class ProcessDocumentParser(DocumentParser):
@@ -268,5 +305,25 @@ class ProcessDocumentParser(DocumentParser):
         super(ProcessDocumentParser, self).__init__(http_resp)
 
 
-manager = multiprocessing.Manager()
-dpc = ParserCache()
+@atexit.register
+def cleanup_pool():
+    if 'dpc' in globals():
+        dpc.stop_workers()
+    
+
+def init_worker(log_queue):
+    """
+    This function is called right after each Process in the ProcessPool is
+    created, and it will initialized some variables/handlers which are required
+    for it to work as expected
+
+    :return: None
+    """
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    log_sink_factory(log_queue)
+    start_profiling_no_core()
+
+
+if is_main_process():
+    manager = multiprocessing.Manager()
+    dpc = ParserCache()

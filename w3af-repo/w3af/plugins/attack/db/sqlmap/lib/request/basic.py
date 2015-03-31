@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2014 sqlmap developers (http://sqlmap.org/)
+Copyright (c) 2006-2015 sqlmap developers (http://sqlmap.org/)
 See the file 'doc/COPYING' for copying permission
 """
 
@@ -31,7 +31,6 @@ from lib.core.settings import BLOCKED_IP_REGEX
 from lib.core.settings import DEFAULT_COOKIE_DELIMITER
 from lib.core.settings import EVENTVALIDATION_REGEX
 from lib.core.settings import MAX_CONNECTION_TOTAL_SIZE
-from lib.core.settings import ML
 from lib.core.settings import META_CHARSET_REGEX
 from lib.core.settings import PARSE_HEADERS_LIMIT
 from lib.core.settings import VIEWSTATE_REGEX
@@ -95,7 +94,7 @@ def forgeHeaders(items=None):
                         _ = readInput(message, default="Y")
                         kb.mergeCookies = not _ or _[0] in ("y", "Y")
 
-                    if kb.mergeCookies:
+                    if kb.mergeCookies and kb.injection.place != PLACE.COOKIE:
                         _ = lambda x: re.sub(r"(?i)\b%s=[^%s]+" % (re.escape(cookie.name), conf.cookieDel or DEFAULT_COOKIE_DELIMITER), "%s=%s" % (cookie.name, getUnicode(cookie.value)), x)
                         headers[HTTP_HEADER.COOKIE] = _(headers[HTTP_HEADER.COOKIE])
 
@@ -196,7 +195,7 @@ def checkCharEncoding(encoding, warn=True):
     except LookupError:
         if warn:
             warnMsg = "unknown web page charset '%s'. " % encoding
-            warnMsg += "Please report by e-mail to %s." % ML
+            warnMsg += "Please report by e-mail to 'dev@sqlmap.org'"
             singleTimeLogMessage(warnMsg, logging.WARN, encoding)
         encoding = None
 

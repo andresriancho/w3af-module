@@ -19,14 +19,16 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
+import SocketServer
 import cStringIO
+import threading
 import traceback
+import httplib
 import socket
 import select
-import httplib
 import time
 import os
-import SocketServer
+
 
 from OpenSSL import SSL
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
@@ -44,7 +46,8 @@ from w3af.core.data.dc.headers import Headers
 class w3afProxyHandler(BaseHTTPRequestHandler):
 
     def handle_one_request(self):
-        """Handle a single HTTP request.
+        """
+        Handle a single HTTP request.
 
         You normally don't need to override this method; see the class
         __doc__ string for information on how to handle specific HTTP
@@ -142,12 +145,12 @@ class w3afProxyHandler(BaseHTTPRequestHandler):
         """
         self.headers['Connection'] = 'close'
 
-        path = self.path
-
         # See HTTPWrapperClass
         if hasattr(self.server, 'chainedHandler'):
             base_path = "https://" + self.server.chainedHandler.path
-            path = base_path + path
+            path = base_path + self.path
+        else:
+            path = self.path
 
         uri_instance = URL(path)
 
@@ -159,10 +162,13 @@ class w3afProxyHandler(BaseHTTPRequestHandler):
             # most likely a POST request
             post_data = self._get_post_data()
 
+        http_method = getattr(self._uri_opener, self.command)
+        headers = Headers(self.headers.items())
+
         try:
-            http_method = getattr(self._uri_opener, self.command)
-            res = http_method(uri_instance, data=post_data,
-                              headers=Headers(self.headers.items()),
+            res = http_method(uri_instance,
+                              data=post_data,
+                              headers=headers,
                               grep=grep)
         except BaseFrameworkException, w:
             om.out.error('The proxy request failed, error: ' + str(w))
@@ -172,14 +178,15 @@ class w3afProxyHandler(BaseHTTPRequestHandler):
         else:
             return res
 
-    def _send_error(self, exceptionObj, trace=None):
+    def _send_error(self, exception_inst, trace=None):
         """
         Send an error to the browser.
 
         Important methods used here:
-            - self.send_header : Sends a header to the browser
-            - self.end_headers : Ends the headers section
-            - self.wfile : A file like object that represents the body of the response
+            - self.send_header: Sends a header to the browser
+            - self.end_headers: Ends the headers section
+            - self.wfile: A file like object that represents the body of the
+                          response
         """
         try:
             self.send_response(400)
@@ -188,7 +195,7 @@ class w3afProxyHandler(BaseHTTPRequestHandler):
             self.end_headers()
             # FIXME: Make this error look nicer
             self.wfile.write(
-                'w3af proxy error: ' + str(exceptionObj) + '<br/><br/>')
+                'w3af proxy error: ' + str(exception_inst) + '<br/><br/>')
             if trace:
                 self.wfile.write('Traceback for this error: <br/><br/>' +
                                  trace.replace('\n', '<br/>'))
@@ -275,16 +282,16 @@ class w3afProxyHandler(BaseHTTPRequestHandler):
         Used by set_verify to check that the SSL certificate if valid.
         In our case, we always return True.
         """
-        om.out.debug(
-            'Got this certificate from remote site: %s' % cert.get_subject())
+        msg = 'Got this certificate from remote site: %s'
+        om.out.debug(msg % cert.get_subject())
         # I don't check for certificates, for me, they are always ok.
         return True
 
     def do_CONNECT(self):
         """
-        Handle the CONNECT method.
-        This method is not expected to be overwritten.
-        To understand what happens here, please read comments for HTTPServerWrapper class
+        Handle the CONNECT method. This method is not expected to be
+        overwritten. To understand what happens here, please read comments for
+        HTTPServerWrapper class
         """
         # Log what we are doing.
         self.log_request(200)
@@ -311,26 +318,27 @@ class w3afProxyHandler(BaseHTTPRequestHandler):
                 ctx.load_verify_locations(self._uri_opener._proxy_cert)
 
                 # Save for later
-                browSoc = self.connection
+                browser_socket = self.connection
 
                 # Don't demand a certificate
                 #
-                #   IMPORTANT: This line HAS to be just before the SSL.Connection, it seems that
-                #                         any other ctx method modifies the SSL.VERIFY_NONE setting!
+                #   IMPORTANT: This line HAS to be just before the
+                #              SSL.Connection, it seems that any other ctx
+                #              method modifies the SSL.VERIFY_NONE setting!
                 #
                 ctx.set_verify(SSL.VERIFY_NONE, self._verify_cb)
 
-                browCon = SSL.Connection(ctx, self.connection)
-                browCon.set_accept_state()
+                browser_sslconn = SSL.Connection(ctx, self.connection)
+                browser_sslconn.set_accept_state()
 
                 # see HTTPServerWrapper class below
                 httpsServer = HTTPServerWrapper(self.__class__, self)
                 httpsServer.w3afLayer = self.server.w3afLayer
 
                 om.out.debug("SSL 'self.connection' connection state=" +
-                             browCon.state_string())
+                             browser_sslconn.state_string())
 
-                conWrap = SSLConnectionWrapper(browCon, browSoc)
+                conWrap = SSLConnectionWrapper(browser_sslconn, browser_socket)
                 try:
                     httpsServer.process_request(conWrap, self.client_address)
                 except SSL.ZeroReturnError, ssl_error:
@@ -388,10 +396,10 @@ class Proxy(Process):
     Or if you don't want a different thread, you can simply call the run method:
         ws.run()
 
-    The proxy handler class is the place where you'll perform all the magic stuff,
-    like intercepting requests, modifying them, etc. A good idea if you want to
-    code your own proxy handler is to inherit from the proxy handler that is
-    already defined in this file (see: w3afProxyHandler).
+    The proxy handler class is the place where you'll perform all the magic
+    stuff, like intercepting requests, modifying them, etc. A good idea if you
+    want to code your own proxy handler is to inherit from the proxy handler
+    that is already defined in this file (see: w3afProxyHandler).
 
     What you basically have to do is to inherit from it:
         class myProxyHandler(w3afProxyHandler):
@@ -413,7 +421,7 @@ class Proxy(Process):
     SSL_CERT = os.path.join(ROOT_PATH, 'core/controllers/daemons/mitm.crt')
 
     def __init__(self, ip, port, uri_opener, proxy_handler=w3afProxyHandler,
-                 proxy_cert=SSL_CERT):
+                 proxy_cert=SSL_CERT, name='ProxyThread'):
         """
         :param ip: IP address to bind
         :param port: Port to bind
@@ -426,7 +434,7 @@ class Proxy(Process):
         """
         Process.__init__(self)
         self.daemon = True
-        self.name = 'ProxyThread'
+        self.name = name
         
         # Internal vars
         self._server = None
@@ -445,7 +453,7 @@ class Proxy(Process):
                                        self._proxy_handler)
         except socket.error, se:
             raise ProxyException('Socket error while starting proxy: "%s"'
-                                     % se.strerror)
+                                 % se.strerror)
         else:
             # This is here to support port == 0, which will bind to the first
             # available/free port, which we don't know until the server really
@@ -520,10 +528,11 @@ class Proxy(Process):
         while self._server is None or self.get_port() is None:
             time.sleep(0.5)
 
-# I want to use threads to handle all requests.
-
 
 class ProxyServer(HTTPServer, SocketServer.ThreadingMixIn):
+    """
+    I want to use threads to handle all requests.
+    """
     def serve_forever(self):
         """Handle one request at a time until stopped."""
         self.stop = False
@@ -536,6 +545,16 @@ class ProxyServer(HTTPServer, SocketServer.ThreadingMixIn):
         
         msg = 'Exiting proxy server serve_forever(); stop() was successful.'
         om.out.debug(msg)
+
+    def process_request(self, request, client_address):
+        """
+        Start a new thread to process the request.
+        """
+        t = threading.Thread(target=self.process_request_thread,
+                             args=(request, client_address),
+                             name='ProxyServerWorker')
+        t.daemon = True
+        t.start()
 
     def server_bind(self):
         msg = 'Changing socket options of ProxyServer to (socket.SOL_SOCKET,'\
@@ -595,9 +614,11 @@ def wrap(socket_obj, ssl_connection, fun, *params):
             raise SSL.ZeroReturnError
         except SSL.Error, ssl_error:
             # This is raised when the browser abruptly closes the
-            # connection, in order to show the user the "false" w3af MITM certificate
-            # and ask if he/she trusts it.
-            # Error: [('SSL routines', 'SSL3_READ_BYTES', 'ssl handshake failure')]
+            # connection, in order to show the user the "false" w3af MITM
+            # certificate and ask if he/she trusts it.
+            # Error: [('SSL routines',
+            #          'SSL3_READ_BYTES',
+            #          'ssl handshake failure')]
             try:
                 msg = ssl_error[0][0][2]
             except Exception:
@@ -669,15 +690,16 @@ class SSLConnectionFile(object):
 
     def read(self, amount):
         if len(self._read_buffer) < amount:
-            #   We actually want to read ahead in order to have more data in the buffer.
+            # We actually want to read ahead in order to have more data in the
+            # buffer.
             if amount <= 4096:
                 to_read = 4096
             else:
                 to_read = amount
             self._read_buffer = self._sslCon.recv(to_read)
 
-        result, self._read_buffer = self._read_buffer[0:
-                                                      amount], self._read_buffer[amount:]
+        result = self._read_buffer[0:amount]
+        self._read_buffer = self._read_buffer[amount:]
         return result
 
     def write(self, data):

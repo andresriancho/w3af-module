@@ -19,33 +19,37 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
-import string
 import hashlib
 import time
 import ssl
 import socket
 
 from github import Github
-from github import GithubException
+from github import GithubException, BadCredentialsException
 
 from w3af.core.controllers.exception_handling.helpers import get_versions
 
 
-TICKET_TEMPLATE = string.Template(
-"""# User description
-$user_desc
-## Version Information
-```
-$w3af_v
-```
-## Traceback
-```pytb
-$t_back
-```
-## Enabled Plugins
-```python
-$plugins
-```""")
+DEFAULT_BUG_QUERY_TEXT = """What steps will reproduce the problem?
+1.
+2.
+3.
+
+What is the expected output? What do you see instead?
+
+
+What operating system are you using?
+
+
+Please provide any additional information below:
+
+
+"""
+
+OAUTH_AUTH_FAILED = """Failed to authenticate with github.com , please try\
+ again later. If the authentication still fails it might be because the\
+ current w3af version is outdated and is not allowed to report any new\
+ issues."""
 
 TICKET_URL_FMT = 'https://github.com/andresriancho/w3af/issues/%s'
 
@@ -55,14 +59,25 @@ TICKET_URL_FMT = 'https://github.com/andresriancho/w3af/issues/%s'
 # This user will act as a "proxy" for w3af users that don't want to enter their
 # github credentials in the bug report window.
 #
-# Token generation:
-#
-# curl -u '1d3df9903ad' -d '{"scopes":["repo"],"note":"w3af issues"}' \
-# https://api.github.com/authorizations
+# Token generation after logging in with 1d3df9903ad, scopes: "repo".
+#       https://github.com/settings/tokens/new
 #
 # Password stored in lastpass. The token should never expire.
 #
-OAUTH_TOKEN = '34186d1cbdd2e55d593e6983fd672cc5a463387f'
+OAUTH_TOKEN = 'bab698f08a4fd15931c4aa44ae399666552ef9e5'
+OAUTH_TOKEN = OAUTH_TOKEN[::-1]
+
+
+class OAuthTokenInvalid(Exception):
+    pass
+
+
+class UserCredentialsInvalid(Exception):
+    pass
+
+
+class LoginFailed(Exception):
+    pass
 
 
 class GithubIssues(object):
@@ -70,28 +85,30 @@ class GithubIssues(object):
         self._user_or_token = user_or_token
         self._password = password
         self.gh = None
+        self.using_oauth = True if password is None else False
         
     def login(self):
         try:
             self.gh = Github(self._user_or_token, self._password)
-        except GithubException:
-            return False
+        except GithubException, ex:
+            # Not sure when we get here, but just in case...
+            raise LoginFailed(str(ex))
         else:
             # This is just a small piece of code which sends a request to the
             # API in order to verify if the credentials are fine. Doesn't
             # really do anything with the user credentials.
             try:
                 [i for i in self.gh.get_user().get_repos()]
-            except ssl.SSLError:
-                # SSLError: The read operation timed out
-                return False
-            except GithubException:
-                return False
-            except socket.gaierror:
-                return False
-            except socket.timeout:
-                return False
-        
+            except BadCredentialsException:
+                # The OAUTH_TOKEN and/or user provided credentials are incorrect
+                if self.using_oauth:
+                    raise OAuthTokenInvalid('Invalid OAuth token')
+                else:
+                    raise UserCredentialsInvalid('Invalid user credentials')
+            except (ssl.SSLError, GithubException, socket.gaierror,
+                    socket.timeout) as ex:
+                raise LoginFailed(str(ex))
+
         return True
         
     def report_bug(self, summary, userdesc, tback='', fname=None, plugins='',
@@ -134,28 +151,43 @@ class GithubIssues(object):
                 m.update(time.ctime())
                 bug_summary = m.hexdigest()
 
-        # Generate the summary string. Concat 'user_title'. If empty, append a
-        # random token to avoid the double click protection added by sourceforge.
+        # Generate the summary string. Concat 'user_title'
         summary = '%sBug Report - %s' % (
             autogen and '[Auto-Generated] ' or '',
             bug_summary)
 
+        if desc.strip() == DEFAULT_BUG_QUERY_TEXT.strip():
+            desc = ''
+
         #
-        #    Define which description to use (depending on the availability of an
-        #    email provided by the user or not).
+        # Define which description to use (depending on the availability of an
+        # email provided by the user or not).
         #
         if email is not None:
             email_fmt = '\n\nThe user provided the following email address for'\
                         'contact: %s'
             desc += email_fmt % email
 
-        #
-        #    Apply all the info
-        #
-        bdata = {'plugins': plugins, 't_back': tback,
-                 'user_desc': desc, 'w3af_v': get_versions()}
-
         # Build details string
-        details = TICKET_TEMPLATE.safe_substitute(bdata)
+        details = ''
+        if desc:
+            details += desc
+            details += '\n'
+
+        details += '## Version Information\n'
+        details += '```\n'
+        details += get_versions()
+        details += '\n```\n'
+
+        details += '## Traceback\n'
+        details += '```pytb\n'
+        details += tback
+        details += '\n```\n'
+
+        if plugins:
+            details += '## Enabled Plugins\n'
+            details += '```python\n'
+            details += plugins
+            details += '\n```\n'
 
         return summary, details

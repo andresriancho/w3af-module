@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2006-2014 sqlmap developers (http://sqlmap.org/)
+Copyright (c) 2006-2015 sqlmap developers (http://sqlmap.org/)
 See the file 'doc/COPYING' for copying permission
 """
 
@@ -53,7 +53,8 @@ class HTTPSConnection(httplib.HTTPSConnection):
                     break
                 else:
                     sock.close()
-            except (ssl.SSLError, socket.error), errMsg:
+            except (ssl.SSLError, socket.error, httplib.BadStatusLine), errMsg:
+                self._tunnel_host = None
                 logger.debug("SSL connection error occurred ('%s')" % errMsg)
 
         if not success:

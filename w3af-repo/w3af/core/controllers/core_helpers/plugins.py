@@ -38,6 +38,9 @@ class w3af_core_plugins(object):
         self._w3af_core = w3af_core
 
         self.initialized = False
+        self._plugins_names_dict = None
+        self._plugins_options = None
+        self.plugins = None
         self.zero_enabled_plugins()
 
     def zero_enabled_plugins(self):
@@ -306,8 +309,10 @@ class w3af_core_plugins(object):
                         self.resolve_dependencies()
 
     def order_plugins(self):
-        """Makes sure that dependencies are run before the plugin that
-        required it"""
+        """
+        Makes sure that dependencies are run before the plugin that
+        required it
+        """
         for plugin_type, enabled_plugins in self._plugins_names_dict.iteritems():
             for plugin_name in enabled_plugins:
                 plugin_inst = self.get_quick_instance(plugin_type, plugin_name)

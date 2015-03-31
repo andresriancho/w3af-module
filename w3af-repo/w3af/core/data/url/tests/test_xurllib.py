@@ -20,24 +20,30 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 import os
+import ssl
 import time
-import unittest
 import Queue
-import SocketServer
 import types
+import unittest
 import httpretty
+import SocketServer
 
 from multiprocessing.dummy import Process
 from nose.plugins.attrib import attr
-from mock import Mock, patch
+from mock import patch
 
-from w3af.core.data.url.extended_urllib import ExtendedUrllib, MAX_ERROR_COUNT
+from w3af import ROOT_PATH
+
+from w3af.core.data.url.extended_urllib import ExtendedUrllib
+from w3af.core.data.url.constants import MAX_ERROR_COUNT
 from w3af.core.data.url.tests.helpers.upper_daemon import UpperDaemon
+from w3af.core.data.url.tests.helpers.ssl_daemon import RawSSLDaemon, SSLServer
 from w3af.core.data.parsers.url import URL
 from w3af.core.data.dc.urlencoded_form import URLEncodedForm
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.url.HTTPResponse import DEFAULT_WAIT_TIME
 
+from w3af.core.controllers.misc.get_unused_port import get_unused_port
 from w3af.core.controllers.ci.moth import get_moth_http
 from w3af.core.controllers.misc.temp_dir import get_temp_dir
 from w3af.core.controllers.exceptions import (ScanMustStopByUserRequest,
@@ -84,7 +90,7 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.GET(url, cache=False)
         self.assertIn('root:x:0', http_response.body)
 
-    def test_POST(self):
+    def test_post(self):
         url = URL(get_moth_http('/audit/xss/simple_xss_form.py'))
 
         data = URLEncodedForm()
@@ -93,7 +99,7 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.POST(url, data, cache=False)
         self.assertIn('123456abc', http_response.body)
 
-    def test_POST_special_chars(self):
+    def test_post_special_chars(self):
         url = URL(get_moth_http('/audit/xss/simple_xss_form.py'))
         test_data = u'abc<def>"-á-'
 
@@ -105,6 +111,10 @@ class TestXUrllib(unittest.TestCase):
 
     def test_unknown_domain(self):
         url = URL('http://longsitethatdoesnotexistfoo.com/')
+        self.assertRaises(HTTPRequestException, self.uri_opener.GET, url)
+
+    def test_file_proto(self):
+        url = URL('file://foo/bar.txt')
         self.assertRaises(HTTPRequestException, self.uri_opener.GET, url)
 
     def test_url_port_closed(self):
@@ -135,6 +145,8 @@ class TestXUrllib(unittest.TestCase):
 
         port = upper_daemon.get_port()
 
+        self.uri_opener.settings.set_max_http_retries(0)
+
         url = URL('http://127.0.0.1:%s/' % port)
         http_request_e = 0
         scan_must_stop_e = 0
@@ -144,19 +156,15 @@ class TestXUrllib(unittest.TestCase):
                 self.uri_opener.GET(url)
             except HTTPRequestException:
                 http_request_e += 1
-                self.assertTrue(True)
-            except ScanMustStopException:
+            except ScanMustStopException, smse:
                 scan_must_stop_e += 1
-                self.assertTrue(True)
                 break
             except Exception, e:
                 msg = 'Not expecting "%s".'
                 self.assertTrue(False, msg % e.__class__.__name__)
-        else:
-            self.assertTrue(False)
 
         self.assertEqual(scan_must_stop_e, 1)
-        self.assertEqual(http_request_e, 5)
+        self.assertEqual(http_request_e, 9)
 
     def test_get_wait_time(self):
         """
@@ -167,74 +175,81 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.GET(url, cache=False)
         self.assertNotEqual(http_response.get_wait_time(), DEFAULT_WAIT_TIME)
 
-    def test_timeout(self):
-        upper_daemon = UpperDaemon(TimeoutTCPHandler)
-        upper_daemon.start()
-        upper_daemon.wait_for_start()
+    def test_ssl_tls_1_0(self):
+        ssl_daemon = RawSSLDaemon(Ok200Handler, ssl_version=ssl.PROTOCOL_TLSv1)
+        ssl_daemon.start()
+        ssl_daemon.wait_for_start()
 
-        port = upper_daemon.get_port()
-        
-        url = URL('http://127.0.0.1:%s/' % port)
-        
-        self.uri_opener.settings.set_timeout(1)
-        
+        port = ssl_daemon.get_port()
+
+        url = URL('https://127.0.0.1:%s/' % port)
+
+        resp = self.uri_opener.GET(url)
+        self.assertEqual(resp.get_body(), Ok200Handler.body)
+
+    def test_ssl_v23(self):
+        # https://bugs.kali.org/view.php?id=2160
+        if not hasattr(ssl, 'PROTOCOL_SSLv23'):
+            return
+
+        ssl_daemon = RawSSLDaemon(Ok200Handler, ssl_version=ssl.PROTOCOL_SSLv23)
+        ssl_daemon.start()
+        ssl_daemon.wait_for_start()
+
+        port = ssl_daemon.get_port()
+
+        url = URL('https://127.0.0.1:%s/' % port)
+
+        resp = self.uri_opener.GET(url)
+        self.assertEqual(resp.get_body(), Ok200Handler.body)
+
+    def test_ssl_v3(self):
+        # https://bugs.kali.org/view.php?id=2160
+        if not hasattr(ssl, 'PROTOCOL_SSLv3'):
+            return
+
+        ssl_daemon = RawSSLDaemon(Ok200Handler, ssl_version=ssl.PROTOCOL_SSLv3)
+        ssl_daemon.start()
+        ssl_daemon.wait_for_start()
+
+        port = ssl_daemon.get_port()
+
+        url = URL('https://127.0.0.1:%s/' % port)
+
+        resp = self.uri_opener.GET(url)
+        self.assertEqual(resp.get_body(), Ok200Handler.body)
+
+    def test_ssl_fail_when_requesting_http(self):
+        http_daemon = UpperDaemon(Ok200Handler)
+        http_daemon.start()
+        http_daemon.wait_for_start()
+
+        port = http_daemon.get_port()
+
+        # Note that here I'm using httpS <<---- "S" and that I've started an
+        # HTTP server. We should get an exception
+        url = URL('https://127.0.0.1:%s/' % port)
+
         self.assertRaises(HTTPRequestException, self.uri_opener.GET, url)
-        
-        self.uri_opener.settings.set_default_values()
 
-    def test_timeout_many(self):
-        upper_daemon = UpperDaemon(TimeoutTCPHandler)
-        upper_daemon.start()
-        upper_daemon.wait_for_start()
+    def test_ssl_fail_when_requesting_moth_http(self):
+        """
+        https://github.com/andresriancho/w3af/issues/7989
 
-        port = upper_daemon.get_port()
+        This test takes considerable time to run since it needs to timeout the
+        SSL connection for each SSL protocol
+        """
+        # Note that here I'm using httpS <<---- "S" and that I'm connecting to
+        # the net location (host:port) of an HTTP server.
+        http_url = URL(get_moth_http())
+        test_url = URL('https://%s' % http_url.get_net_location())
 
-        self.uri_opener.settings.set_timeout(1)
+        self.uri_opener.settings.set_max_http_retries(0)
 
-        url = URL('http://127.0.0.1:%s/' % port)
-        http_request_e = 0
-        scan_stop_e = 0
-
-        for _ in xrange(MAX_ERROR_COUNT):
-            try:
-                self.uri_opener.GET(url)
-            except HTTPRequestException:
-                http_request_e += 1
-                self.assertTrue(True)
-            except ScanMustStopException:
-                scan_stop_e += 1
-                self.assertTrue(True)
-                break
-            except Exception, e:
-                msg = 'Not expecting: "%s"'
-                self.assertTrue(False, msg % e.__class__.__name__)
-        else:
-            self.assertTrue(False)
-
-        self.uri_opener.settings.set_default_values()
-        self.assertEqual(http_request_e, 5)
-        self.assertEqual(scan_stop_e, 1)
-
-    def test_ignore_errors(self):
-        upper_daemon = UpperDaemon(TimeoutTCPHandler)
-        upper_daemon.start()
-        upper_daemon.wait_for_start()
-
-        port = upper_daemon.get_port()
-
-        self.uri_opener.settings.set_timeout(1)
-        self.uri_opener._retry = Mock()
-
-        url = URL('http://127.0.0.1:%s/' % port)
-
-        try:
-            self.uri_opener.GET(url, ignore_errors=True)
-        except HTTPRequestException:
-            self.assertEqual(self.uri_opener._retry.call_count, 0)
-        else:
-            self.assertTrue(False, 'Exception not raised')
-
-        self.uri_opener.settings.set_default_values()
+        self.assertRaises(HTTPRequestException,
+                          self.uri_opener.GET,
+                          test_url,
+                          timeout=1)
 
     def test_stop(self):
         self.uri_opener.stop()
@@ -319,6 +334,46 @@ class TestXUrllib(unittest.TestCase):
         http_response = self.uri_opener.GET(url, cache=False, headers=headers)
         self.assertIn(header_content, http_response.body)
 
+    @attr('internet')
+    def test_bad_file_descriptor_8125(self):
+        """
+        8125 is basically an issue with the way HTTP SSL connections handle the
+        Connection: Close header. If at any point the URL in this test starts
+        to fail, I just need to find another which sends that header.
+
+        Also, see the test_bad_file_descriptor_8125_mock test.
+
+        :see: https://github.com/andresriancho/w3af/issues/8125
+        """
+        self.uri_opener.settings.set_max_http_retries(0)
+        url = URL('https://www.factoriadigital.com/hosting/wordpress')
+        http_response = self.uri_opener.GET(url, cache=False)
+        self.assertIn('Soporte', http_response.body)
+
+    def test_bad_file_descriptor_8125_local(self):
+        """
+        :see: https://github.com/andresriancho/w3af/issues/8125
+        """
+        port = get_unused_port()
+        raw_http_response = "HTTP/1.1 200 Ok\r\n"\
+                            "Connection: close\r\n"\
+                            "Content-Type: text/html\r\n"\
+                            "Content-Length: 3\r\n\r\nabc"
+        certfile = os.path.join(ROOT_PATH, 'plugins', 'tests', 'audit',
+                                'certs', 'invalid_cert.pem')
+
+        s = SSLServer('localhost', port, certfile,
+                      http_response=raw_http_response)
+        s.start()
+
+        body = 'abc'
+        mock_url = 'https://localhost:%s/' % port
+        url = URL(mock_url)
+        http_response = self.uri_opener.GET(url, cache=False)
+
+        self.assertEqual(body, http_response.body)
+        s.stop()
+
     def test_rate_limit_high(self):
         self.rate_limit_generic(500, 0.01, 0.4)
 
@@ -326,7 +381,7 @@ class TestXUrllib(unittest.TestCase):
         self.rate_limit_generic(1, 1, 2.2)
 
     def test_rate_limit_zero(self):
-        self.rate_limit_generic(0, 0.01, 0.4)
+        self.rate_limit_generic(0, 0.005, 0.4)
 
     @httpretty.activate
     def rate_limit_generic(self, max_requests_per_second, _min, _max):
@@ -361,3 +416,14 @@ class TimeoutTCPHandler(SocketServer.BaseRequestHandler):
         self.data = self.request.recv(1024).strip()
         time.sleep(60)
         self.request.sendall('')
+
+
+class Ok200Handler(SocketServer.BaseRequestHandler):
+    body = 'abc'
+
+    def handle(self):
+        self.data = self.request.recv(1024).strip()
+        self.request.sendall('HTTP/1.0 200 Ok\r\n'
+                             'Connection: Close\r\n'
+                             'Content-Length: 3\r\n'
+                             '\r\n' + self.body)
