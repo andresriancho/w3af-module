@@ -1,7 +1,7 @@
 """
-test_apache_config_directory.py
+debian80.py
 
-Copyright 2012 Andres Riancho
+Copyright 2013 Andres Riancho
 
 This file is part of w3af, http://w3af.org/ .
 
@@ -17,17 +17,17 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
 """
-from w3af.plugins.attack.payloads.payloads.tests.payload_test_helper import PayloadTestHelper
-from w3af.plugins.attack.payloads.payload_handler import exec_payload
+import platform
+
+from .ubuntu1204 import Ubuntu1204
 
 
-class TestApacheConfigDirectory(PayloadTestHelper):
+class Debian80(Ubuntu1204):
+    SYSTEM_NAME = 'Debian 8.0'
 
-    EXPECTED_RESULT = {'apache_directory': ['/etc/apache2/']}
-
-    def test_apache_config_directory(self):
-        result = exec_payload(self.shell,
-                              'apache_config_directory',
-                              use_api=True)
-        self.assertEquals(self.EXPECTED_RESULT, result)
+    @staticmethod
+    def is_current_platform():
+        dist_name, dist_version, _ = platform.dist()
+        return 'debian' == dist_name and '8.0' == dist_version
