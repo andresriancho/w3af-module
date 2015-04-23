@@ -176,8 +176,8 @@ class w3afCore(object):
         except Exception, e:
             error = ('verify_environment() raised an exception: "%s". This'
                      ' should never happen. Are you (UI developer) sure that'
-                     ' you called verify_environment() *before* start() ?' % e)
-            om.out.error(error)
+                     ' you called verify_environment() *before* start() ?')
+            om.out.error(error % e)
             raise
 
         # Let the output plugins know what kind of plugins we're
@@ -217,12 +217,12 @@ class w3afCore(object):
             #
             raise
         except ScanMustStopException, wmse:
-            error = '\n**IMPORTANT** The following error was detected by'\
-                    ' w3af and couldn\'t be resolved:\n%s\n' % wmse
-            om.out.error(error)
+            error = ('\n**IMPORTANT** The following error was detected by'
+                     ' w3af and couldn\'t be resolved:\n%s\n')
+            om.out.error(error % wmse)
         except Exception:
-            om.out.error('\nUnhandled error, traceback: %s\n' %
-                         traceback.format_exc())
+            msg = '\nUnhandled error, traceback: %s\n'
+            om.out.error(msg % traceback.format_exc())
             raise
         finally:
 
@@ -314,7 +314,7 @@ class w3afCore(object):
 
         # Not calling:
         # self.plugins.zero_enabled_plugins()
-        # because I wan't to keep the selected plugins and configurations
+        # because I want to keep the selected plugins and configurations
 
     def stop(self):
         """
@@ -379,7 +379,7 @@ class w3afCore(object):
     def pause(self, pause_yes_no):
         """
         Pauses/Un-Pauses scan.
-        :param trueFalse: True if the UI wants to pause the scan.
+        :param pause_yes_no: True if the UI wants to pause the scan.
         """
         self.status.pause(pause_yes_no)
         self.strategy.pause(pause_yes_no)
@@ -399,12 +399,13 @@ class w3afCore(object):
         if not cf.cf.get('targets'):
             raise BaseFrameworkException('No target URI configured.')
 
-        if not len(self.plugins.get_enabled_plugins('audit'))\
-        and not len(self.plugins.get_enabled_plugins('crawl'))\
-        and not len(self.plugins.get_enabled_plugins('infrastructure'))\
-        and not len(self.plugins.get_enabled_plugins('grep')):
-            raise BaseFrameworkException(
-                'No audit, grep or crawl plugins configured to run.')
+        if not len(self.plugins.get_enabled_plugins('audit')) \
+           and not len(self.plugins.get_enabled_plugins('crawl')) \
+           and not len(self.plugins.get_enabled_plugins('infrastructure')) \
+           and not len(self.plugins.get_enabled_plugins('grep')):
+
+            msg = 'No audit, grep or crawl plugins configured to run.'
+            raise BaseFrameworkException(msg)
 
     def scan_end_hook(self):
         """
@@ -428,8 +429,6 @@ class w3afCore(object):
         finally:
             self.exploit_phase_prerequisites()
 
-            self.status.stop()
-
             # Remove all references to plugins from memory
             self.plugins.zero_enabled_plugins()
             
@@ -441,6 +440,8 @@ class w3afCore(object):
 
             # Stop the parser subprocess
             parser_cache.dpc.stop_workers()
+
+            self.status.stop()
 
     def exploit_phase_prerequisites(self):
         """
