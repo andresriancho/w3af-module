@@ -126,6 +126,11 @@ class w3afCore(object):
         
         :return: None
         """
+        # Create this again just to clear the internal states
+        scans_completed = self.status.scans_completed
+        self.status = w3af_core_status(self, scans_completed=scans_completed)
+        self.status.start()
+
         start_profiling(self)
 
         if not self._first_scan:
@@ -147,10 +152,6 @@ class w3afCore(object):
         # strategy which might still have data stored in it and create a new
         # one  
         self.strategy = w3af_core_strategy(self)
-        
-        # And create this again just to clear the internal states
-        scans_completed = self.status.scans_completed
-        self.status = w3af_core_status(self, scans_completed=scans_completed)
 
         # Init the 404 detection for the whole framework
         fp_404_db = fingerprint_404_singleton(cleanup=True)
@@ -166,10 +167,9 @@ class w3afCore(object):
                 do your error handling!
         """
         om.out.debug('Called w3afCore.start()')
-        
+
         self.scan_start_hook()
-        self.status.start()
-        
+
         try:
             # Just in case the GUI / Console forgot to do this...
             self.verify_environment()
@@ -301,7 +301,7 @@ class w3afCore(object):
         kb.cleanup()
 
         # Stop the parser subprocess
-        parser_cache.dpc.stop_workers()
+        parser_cache.dpc.clear()
 
         # Not cleaning the config is a FEATURE, because the user is most likely
         # going to start a new scan to the same target, and he wants the proxy,
@@ -374,7 +374,7 @@ class w3afCore(object):
         self.uri_opener.end()
         remove_temp_dir(ignore_errors=True)
         # Stop the parser subprocess
-        parser_cache.dpc.stop_workers()
+        parser_cache.dpc.clear()
 
     def pause(self, pause_yes_no):
         """
@@ -439,7 +439,7 @@ class w3afCore(object):
             stop_profiling(self)
 
             # Stop the parser subprocess
-            parser_cache.dpc.stop_workers()
+            parser_cache.dpc.clear()
 
             self.status.stop()
 

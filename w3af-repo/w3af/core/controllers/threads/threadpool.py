@@ -31,7 +31,6 @@ from multiprocessing import cpu_count
 
 from .pool276 import ThreadPool, RUN
 
-
 __all__ = ['Pool']
 
 
@@ -69,7 +68,8 @@ class DaemonProcess(Process):
 class Pool(ThreadPool):
 
     def __init__(self, processes=None, initializer=None, initargs=(),
-                 worker_names=None, maxtasksperchild=None):
+                 worker_names=None, maxtasksperchild=None,
+                 max_queued_tasks=0):
         """
         Overriding this method in order to:
             * Name the pool worker threads
@@ -77,7 +77,7 @@ class Pool(ThreadPool):
         """
         self.Process = partial(DaemonProcess, name=worker_names)
 
-        self._setup_queues()
+        self._setup_queues(max_queued_tasks)
         self._taskqueue = Queue.Queue()
         self._cache = {}
         self._state = RUN
@@ -132,8 +132,8 @@ class Pool(ThreadPool):
                   self._result_handler, self._cache),
             exitpriority=15)
     
-    def _setup_queues(self):
-        self._inqueue = Queue.Queue()
+    def _setup_queues(self, max_queued_tasks):
+        self._inqueue = Queue.Queue(maxsize=max_queued_tasks)
         self._outqueue = Queue.Queue()
         self._quick_put = self._inqueue.put
         self._quick_get = self._outqueue.get
@@ -175,8 +175,8 @@ class Pool(ThreadPool):
                 self._outqueue.qsize() == 0 and
                 self._taskqueue.qsize() == 0):
                 break
-            else:
-                time.sleep(delay)
+
+            time.sleep(delay)
 
         self.terminate()
         self.join()
