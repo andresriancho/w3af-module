@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 from w3af.core.data.dc.generic.kv_container import KeyValueContainer
 from w3af.core.data.constants.encodings import UTF8
-from w3af.core.data.parsers.xmlrpc import parse_xmlrpc, build_xmlrpc
+from w3af.core.data.parsers.doc.xmlrpc import parse_xmlrpc, build_xmlrpc
 
 
 ERR_MSG = 'Unsupported xml_data "%s" for xmlrpc container.'
@@ -51,7 +51,8 @@ class XmlRpcContainer(KeyValueContainer):
         self.parse_xml_data(xml_post_data)
 
     def __reduce__(self):
-        return self.__class__, (self._xml_post_data,), {}
+        return self.__class__, (self._xml_post_data,), {'token': self.token,
+                                                        'encoding': self.encoding}
 
     def get_type(self):
         return 'XML-RPC'

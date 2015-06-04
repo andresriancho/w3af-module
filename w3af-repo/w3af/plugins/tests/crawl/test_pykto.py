@@ -24,12 +24,11 @@ import re
 import os
 
 from nose.plugins.attrib import attr
-from w3af import ROOT_PATH
 
+from w3af import ROOT_PATH
 from w3af.plugins.tests.helper import PluginTest, PluginConfig
 from w3af.plugins.crawl.pykto import NiktoTestParser, IsVulnerableHelper, Config
-
-from w3af.core.data.parsers.url import URL
+from w3af.core.data.parsers.doc.url import URL
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.misc.file_utils import days_since_file_update
 from w3af.core.data.url.HTTPResponse import HTTPResponse
@@ -69,7 +68,8 @@ class TestPykto(PluginTest):
         
 
 class TestIsVulnerableHelper(unittest.TestCase):
-    # is_vuln = IsVulnerableHelper(match_1, match_1_or, match_1_and, fail_1, fail_2)
+    # is_vuln = IsVulnerableHelper(match_1, match_1_or, match_1_and,
+    #                              fail_1, fail_2)
     
     def test_checks_only_response_code_case01(self):
         is_vuln = IsVulnerableHelper(200, None, None, None, None)

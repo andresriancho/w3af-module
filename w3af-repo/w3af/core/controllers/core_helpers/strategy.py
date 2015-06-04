@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
 import Queue
+import sys
 
 from multiprocessing import TimeoutError
 
@@ -97,17 +98,34 @@ class w3af_core_strategy(object):
 
             self._fuzzable_request_router()
 
+        except Exception, e:
+
+            om.out.debug('strategy.start() found exception "%s"' % e)
+            exc_info = sys.exc_info()
+
+            try:
+                # Terminate the consumers, exceptions at this level stop the
+                # scan
+                self.terminate()
+
+                # While the consumers might have finished, they certainly queue
+                # tasks in the core's worker_pool, which need to be processed
+                # too
+                self._w3af_core.worker_pool.finish()
+            except Exception, e:
+                msg = 'strategy.start() found exception while terminating' \
+                      ' workers "%s"'
+                om.out.debug(msg % e)
+
+            raise exc_info[0], exc_info[1], exc_info[2]
+
+        else:
+            # Wait for all consumers to finish
             self.join_all_consumers()
 
             # While the consumers might have finished, they certainly queue
             # tasks in the core's worker_pool, which need to be processed too
             self._w3af_core.worker_pool.finish()
-
-        except Exception, e:
-            self.terminate()
-
-            om.out.debug('strategy.start() is raising exception "%s"' % e)
-            raise
 
     def stop(self):
         self.terminate()
@@ -122,7 +140,7 @@ class w3af_core_strategy(object):
         Consume (without processing) all queues with data which are in
         the consumers and then send a poison-pill to that queue.
         """
-        consumers = {'grep', 'audit', 'auth', 'discovery', 'bruteforce'}
+        consumers = {'discovery', 'audit', 'auth', 'bruteforce', 'grep'}
 
         for consumer in consumers:
 
@@ -189,7 +207,8 @@ class w3af_core_strategy(object):
             self._handle_all_consumer_exceptions(_other)
 
             # Route fuzzable requests
-            route_result = self._route_one_fuzzable_request_batch(_input, output,
+            route_result = self._route_one_fuzzable_request_batch(_input,
+                                                                  output,
                                                                   finished,
                                                                   consumer_forced_end)
 
@@ -346,8 +365,8 @@ class w3af_core_strategy(object):
             except ScanMustStopByUserRequest:
                 raise
             except Exception, e:
-                msg = 'Failed to initialize the 404 detection, original' \
-                      ' exception was: "%s".'
+                msg = ('Failed to initialize the 404 detection, original'
+                       ' exception was: "%s".')
                 raise ScanMustStopException(msg % e)
 
     def _setup_crawl_infrastructure(self):

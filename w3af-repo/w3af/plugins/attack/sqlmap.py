@@ -32,6 +32,8 @@ from w3af.core.controllers.exceptions import OSDetectionException
 from w3af.core.controllers.plugins.attack_plugin import AttackPlugin
 from w3af.core.controllers.intrusion_tools.readMethodHelpers import read_os_detection
 from w3af.core.data.kb.read_shell import ReadShell
+from w3af.core.data.fuzzer.mutants.querystring_mutant import QSMutant
+from w3af.core.data.fuzzer.mutants.postdata_mutant import PostDataMutant
 from w3af.plugins.attack.db.sqlmap_wrapper import Target, SQLMapWrapper
 from w3af.plugins.attack.payloads.decorators.read_decorator import read_debug
 
@@ -89,6 +91,14 @@ class sqlmap(AttackPlugin):
         :return : True if vuln can be exploited.
         """
         mutant = vuln_obj.get_mutant()
+
+        if not isinstance(mutant, (QSMutant, PostDataMutant)):
+            msg = ('The SQL injection vulnerability at %s can not be exploited'
+                   ' by w3af\'s sqlmap wrapper because it can only handle'
+                   ' query string and url-encoded post data parameters.')
+            om.out.console(msg % (mutant.get_url(),))
+            return False
+
         orig_value = mutant.get_token().get_original_value()
 
         # When the original value of the parameter was empty, mostly when it
@@ -100,26 +110,49 @@ class sqlmap(AttackPlugin):
             mutant = copy.deepcopy(mutant)
             mutant.set_token_value(pvalue)
 
-            post_data = mutant.get_data() or None
+            self._sqlmap = None
 
+            post_data = mutant.get_data() or None
             target = Target(mutant.get_uri(), post_data)
 
             try:
                 sqlmap = SQLMapWrapper(target, self._uri_opener)
             except TypeError:
                 issue_url = 'https://github.com/andresriancho/w3af/issues/6439'
-                msg = 'w3af\'s sqlmap wrapper has some limitations, and you' \
-                      ' just found one of them. For more information please' \
-                      ' visit %s .'
+                msg = ('w3af\'s sqlmap wrapper has some limitations, and you'
+                       ' just found one of them. For more information please'
+                       ' visit %s .')
                 om.out.console(msg % issue_url)
                 return False
+
+            try:
+                is_vuln = sqlmap.is_vulnerable()
+            except:
+                sqlmap.cleanup()
+
+                if sqlmap.last_stdout is None or sqlmap.last_stderr is None:
+                    # Not sure when we get here
+                    return False
+
+                taint_error = 'provided tainted parameter'
+                if not (taint_error in sqlmap.last_stdout or
+                        taint_error in sqlmap.last_stderr):
+                    # Some error that we don't have a special handling for
+                    return False
+
+                issue_url = 'https://github.com/andresriancho/w3af/issues/1989'
+                msg = ('w3af\'s sqlmap wrapper has some limitations, and you'
+                       ' just found one of them. For more information please'
+                       ' visit %s and add the steps required to reproduce this'
+                       ' issue which will help us debug and fix it.')
+                om.out.console(msg % issue_url)
+                return False
+
+            if is_vuln:
+                self._sqlmap = sqlmap
+                return True
             else:
-                if sqlmap.is_vulnerable():
-                    self._sqlmap = sqlmap
-                    return True
-                else:
-                    self._sqlmap = None
-                    sqlmap.cleanup()
+                sqlmap.cleanup()
         
         return False
 
@@ -163,6 +196,12 @@ class RunFunctor(Process):
         
     def run(self):
         cmd, process = apply(self.functor, self.params)
+
+        if process is None:
+            # Something really bad happen with sqlmap
+            om.out.console('Failed to start the sqlmap subprocess')
+            return
+        
         self.process = process
         
         om.out.information('Wrapped SQLMap command: %s' % cmd)

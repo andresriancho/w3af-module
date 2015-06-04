@@ -24,14 +24,14 @@ import re
 
 import w3af.core.data.kb.knowledge_base as kb
 import w3af.core.data.constants.severity as severity
-
 from w3af.core.data.kb.info import Info
 from w3af.core.data.kb.vuln import Vuln
 from w3af.core.data.kb.info_set import InfoSet
-from w3af.core.data.parsers.cookie_parser import parse_cookie, COOKIE_HEADERS
+from w3af.core.data.parsers.doc.cookie_parser import parse_cookie, COOKIE_HEADERS
 from w3af.core.data.bloomfilter.scalable_bloom import ScalableBloomFilter
 from w3af.core.data.constants.cookies import COOKIE_FINGERPRINT
 from w3af.core.controllers.plugins.grep_plugin import GrepPlugin
+
 
 COOKIE_KEYS = 'cookie_keys'
 COOKIE_OBJECT = 'cookie_object'
@@ -233,17 +233,17 @@ class analyze_cookies(GrepPlugin):
 
                 # The cookie was sent using SSL, I'll check if the current
                 # request, is using these values in the POSTDATA / QS / COOKIE
-                for key in info[COOKIE_KEYS]:
+                for cookie_key in info[COOKIE_KEYS]:
 
-                    value = info.get_cookie_object()[key].value
+                    cookie_value = info.get_cookie_object()[cookie_key].value
 
                     # This if is to create less false positives
-                    if len(value) > 6 and value in request_dump:
+                    if len(cookie_value) > 6 and cookie_value in request_dump:
 
-                        desc = 'Cookie values that were set over HTTPS, are' \
-                               ' then sent over an insecure channel in a' \
-                               ' request to "%s".'
-                        desc = desc % request.get_url()
+                        desc = ('The cookie "%s" with value "%s" which was'
+                                ' set over HTTPS, was then sent over an'
+                                ' insecure channel in a request to "%s".')
+                        desc %= (cookie_key, cookie_value, request.get_url())
 
                         v = CookieVuln('Secure cookies over insecure channel',
                                        desc, severity.HIGH, response.id,
@@ -264,6 +264,7 @@ class analyze_cookies(GrepPlugin):
         for cookie_key in cookie_keys:
             if cookie_key in self._cookie_key_failed_fingerprint:
                 cookie_keys.remove(cookie_key)
+                continue
 
             if cookie_key in self._already_reported_fingerprint:
                 cookie_keys.remove(cookie_key)

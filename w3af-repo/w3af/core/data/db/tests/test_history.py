@@ -24,16 +24,14 @@ import os.path
 
 from nose.plugins.attrib import attr
 
-import w3af.core.data.kb.config as cf
 import w3af.core.data.kb.knowledge_base as kb
-
 from w3af.core.controllers.exceptions import DBException
 from w3af.core.controllers.misc.temp_dir import create_temp_dir, remove_temp_dir
 from w3af.core.data.db.dbms import get_default_temp_db_instance
 from w3af.core.data.db.history import HistoryItem
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.fuzzer.utils import rand_alnum
-from w3af.core.data.parsers.url import URL
+from w3af.core.data.parsers.doc.url import URL
 from w3af.core.data.url.HTTPResponse import HTTPResponse
 from w3af.core.data.url.HTTPRequest import HTTPRequest
 
@@ -55,13 +53,6 @@ class TestHistoryItem(unittest.TestCase):
         h1 = HistoryItem()
         h2 = HistoryItem()
         self.assertEqual(h1._db, h2._db)
-
-    def test_special_chars_in_db_filename(self):
-        kb.kb.cleanup()
-        cf.cf.cleanup()
-        cf.cf.save('session_name', 'db_foo-:3128!.db')
-        create_temp_dir()
-        h1 = HistoryItem()
 
     def test_find(self):
         find_id = random.randint(1, 499)

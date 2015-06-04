@@ -21,10 +21,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 from __future__ import with_statement
 
-from lxml import etree
-
 import w3af.core.data.constants.severity as severity
 
+from w3af.core.data.parsers.mp_document_parser import mp_doc_parser
 from w3af.core.data.fuzzer.fuzzer import create_mutants
 from w3af.core.controllers.plugins.audit_plugin import AuditPlugin
 from w3af.core.data.kb.vuln import Vuln
@@ -37,19 +36,20 @@ class phishing_vector(AuditPlugin):
     :author: Andres Riancho (andres.riancho@gmail.com)
     """
 
+    TAGS = ('iframe', 'frame')
+
     def __init__(self):
         AuditPlugin.__init__(self)
-
-        # Some internal vars
-        self._tag_xpath = etree.XPath('//iframe | //frame')
 
         # I test this with different URL handlers because the developer may have
         # blacklisted http:// and https:// but missed ftp://.
         #
         # I also use hTtp instead of http because I want to evade some (stupid)
         # case sensitive filters
-        self._test_urls = ('hTtp://w3af.org/', 'htTps://w3af.org/',
-                           'fTp://w3af.org/')
+        self._test_urls = ('hTtp://w3af.org/',
+                           'htTps://w3af.org/',
+                           'fTp://w3af.org/',
+                           '//w3af.org')
 
     def audit(self, freq, orig_response):
         """
@@ -67,46 +67,43 @@ class phishing_vector(AuditPlugin):
         """
         Analyze results of the _send_mutant method.
         """
+        if not response.is_text_or_html():
+            return
+
         if self._has_bug(mutant):
             return
-        
-        dom = response.get_dom()
 
-        if response.is_text_or_html() and dom is not None:
+        for tag in mp_doc_parser.get_tags_by_filter(response, self.TAGS):
+            src_attr = tag.attrib.get('src', None)
+            if src_attr is None:
+                continue
 
-            elem_list = self._tag_xpath(dom)
+            for url in self._test_urls:
+                if not src_attr.startswith(url):
+                    continue
 
-            for element in elem_list:
+                # Vuln vuln!
+                desc = 'A phishing vector was found at: %s'
+                desc %= mutant.found_at()
 
-                if 'src' not in element.attrib:
-                    return []
+                v = Vuln.from_mutant('Phishing vector', desc, severity.LOW,
+                                     response.id, self.get_name(), mutant)
 
-                src_attr = element.attrib['src']
-
-                for url in self._test_urls:
-                    if src_attr.startswith(url):
-                        # Vuln vuln!
-                        desc = 'A phishing vector was found at: %s'
-                        desc = desc % mutant.found_at()
-                        
-                        v = Vuln.from_mutant('Phishing vector', desc,
-                                             severity.LOW, response.id,
-                                             self.get_name(), mutant)
-                        
-                        v.add_to_highlight(src_attr)
-                        self.kb_append_uniq(self, 'phishing_vector', v)
-
+                v.add_to_highlight(src_attr)
+                self.kb_append_uniq(self, 'phishing_vector', v)
+                break
 
     def get_long_desc(self):
         """
         :return: A DETAILED description of the plugin functions and features.
         """
         return """
-        This plugins finds phishing vectors in web applications, for example,
-        a bug of this type is found if I request the URL
-        "http://site.tld/asd.asp?info=http://attacker.tld" and in the response
-        HTML the web application sends:
+        This plugins identifies phishing vectors in web applications, a bug of
+        this type is found if the victim requests the URL
+        "http://site.tld/asd.asp?info=http://attacker.tld" and the HTTP response
+        contains:
+
             ...
             <iframe src="http://attacker.tld">
-            ....
+            ...
         """

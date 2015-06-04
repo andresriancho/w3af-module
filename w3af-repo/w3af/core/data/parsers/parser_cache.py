@@ -21,119 +21,49 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 from __future__ import with_statement, print_function
 
-import os
-import zlib
-import signal
 import atexit
 import threading
-import multiprocessing
 
 from darts.lib.utils.lru import SynchronizedLRUDict
-from tblib.decorators import Error
 
-import w3af.core.controllers.output_manager as om
-
-from w3af.core.controllers.profiling import start_profiling_no_core
-from w3af.core.controllers.threads.process_pool import ProcessPool
 from w3af.core.controllers.threads.is_main_process import is_main_process
-from w3af.core.controllers.output_manager import log_sink_factory
-from w3af.core.data.parsers.document_parser import DocumentParser
 from w3af.core.controllers.exceptions import BaseFrameworkException
-from w3af.core.controllers.ci.detect import is_running_on_ci
-from w3af.core.controllers.threads.decorators import apply_with_return_error
+from w3af.core.controllers.profiling.core_stats import core_profiling_is_enabled
+from w3af.core.data.parsers.utils.request_uniq_id import get_request_unique_id
+from w3af.core.data.parsers.mp_document_parser import mp_doc_parser
+from w3af.core.data.parsers.utils.cache_stats import CacheStats
 
 
-class ParserCache(object):
+class ParserCache(CacheStats):
     """
     This class is a document parser cache.
 
     :author: Andres Riancho (andres.riancho@gmail.com)
     """
-    LRU_LENGTH = 40
+    CACHE_SIZE = 10
     MAX_CACHEABLE_BODY_LEN = 1024 * 1024
-    PARSER_TIMEOUT = 60 # in seconds
-    DEBUG = False
-    MAX_WORKERS = 2 if is_running_on_ci() else (multiprocessing.cpu_count() / 2) or 1
+    DEBUG = core_profiling_is_enabled()
 
     def __init__(self):
-        self._cache = SynchronizedLRUDict(self.LRU_LENGTH)
-        self._pool = None
-        self._processes = None
+        super(ParserCache, self).__init__()
+        
+        self._cache = SynchronizedLRUDict(self.CACHE_SIZE)
         self._parser_finished_events = {}
-        self._start_lock = threading.RLock()
 
-        # These are here for debugging:
-        self._archive = set()
-        self._from_LRU = 0.0
-        self._calculated_more_than_once = 0.0
-        self._total = 0.0
-
-    def start_workers(self):
+    def clear(self):
         """
-        Start the pool and workers
-        :return: The pool instance
-        """
-        with self._start_lock:
-            if self._pool is None:
-                # Keep track of which pid is processing which http response
-                # pylint: disable=E1101
-                self._processes = manager.dict()
-                # pylint: enable=E1101
-
-                # The pool
-                log_queue = om.manager.get_in_queue()
-                self._pool = ProcessPool(self.MAX_WORKERS,
-                                         maxtasksperchild=25,
-                                         initializer=init_worker,
-                                         initargs=(log_queue,))
-
-        return self._pool
-
-    def stop_workers(self):
-        """
-        Stop the pool workers
+        Clear all the internal variables
         :return: None
         """
-        if self._pool is not None:
-            self._pool.terminate()
-            self._pool = None
-            self._processes = None
+        # Stop any workers
+        mp_doc_parser.stop_workers()
 
-        # We don't need this data anymore
+        # Make sure the parsers clear all resources
+        for parser in self._cache.itervalues():
+            parser.clear()
+
+        # We don't need the parsers anymore
         self._cache.clear()
-
-        if self.DEBUG:
-            re_calc_rate = (self._calculated_more_than_once / self._total)
-            print('parser_cache LRU rate: %s' % (self._from_LRU / self._total))
-            print('parser_cache re-calculation rate: %s' % re_calc_rate)
-            print('parser_cache size: %s' % self.LRU_LENGTH)
-
-    def get_cache_key(self, http_response):
-        """
-        Before I used md5, but I realized that it was unnecessary. I
-        experimented a little bit with python's hash functions and the builtin
-        hash was the fastest.
-
-        At first I thought that the built-in hash wasn't good enough, as it
-        could create collisions... but... given that the LRU has only 40
-        positions, the real probability of a collision is too low.
-
-        :return: The key to be used in the cache for storing this http_response
-        """
-        # @see: test_bug_13_Dec_2012 to understand why we concat the uri to the
-        #       body before hashing
-        uri_str = http_response.get_uri().url_string.encode('utf-8')
-
-        body_str = http_response.body
-        if isinstance(body_str, unicode):
-            body_str = body_str.encode('utf-8', 'replace')
-
-        _to_hash = body_str + uri_str
-
-        # Added adler32 after finding some hash() collisions in builds
-        hash_string = str(hash(_to_hash))
-        hash_string += str(zlib.adler32(_to_hash))
-        return hash_string
 
     def should_cache(self, http_response):
         """
@@ -144,95 +74,14 @@ class ParserCache(object):
         """
         return len(http_response.get_body()) < self.MAX_CACHEABLE_BODY_LEN
 
-    def _test_parse_http_response(self, http_response, *args):
-        """
-        Left here for testing!
-        """
-        return DocumentParser(http_response)
-
-    def _parse_http_response_in_worker(self, http_response, hash_string):
-        """
-        This parses the http_response in a pool worker. This has two features:
-            * We can kill the worker if the parser is taking too long
-            * We can have different parsers
-
-        :return: The DocumentParser instance
-        """
-        event = multiprocessing.Event()
-        self._parser_finished_events[hash_string] = event
-
-        # Start the worker processes if needed
-        self.start_workers()
-
-        apply_args = (ProcessDocumentParser,
-                      http_response,
-                      self._processes,
-                      hash_string)
-
-        # Push the task to the workers
-        result = self._pool.apply_async(apply_with_return_error, (apply_args,))
-
-        try:
-            parser_output = result.get(timeout=self.PARSER_TIMEOUT)
-        except multiprocessing.TimeoutError:
-            # Near the timeout error, so we make sure that the pid is still
-            # running our "buggy" input
-            pid = self._processes.pop(hash_string, None)
-            if pid is not None:
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                except OSError, ose:
-                    msg = 'An error occurred while killing the parser' \
-                          ' process: "%s"'
-                    om.out.debug(msg % ose)
-
-            msg = '[timeout] The parser took more than %s seconds'\
-                  ' to complete parsing of "%s", killed it!'
-
-            om.out.debug(msg % (self.PARSER_TIMEOUT,
-                                http_response.get_url()))
-
-            # Act just like when there is no parser
-            msg = 'There is no parser for "%s".' % http_response.get_url()
-            raise BaseFrameworkException(msg)
-        else:
-            if isinstance(parser_output, Error):
-                parser_output.reraise()
-
-        finally:
-            # Just remove it so it doesn't use memory
-            self._processes.pop(hash_string, None)
-
-            # Let other threads know that we're done
-            event = self._parser_finished_events.pop(hash_string, None)
-
-            if event is not None:
-                # There is a really rare race condition where more than one
-                # thread calls _parse_http_response_in_worker and queues the
-                # same hash_string for processing, since it's so rare I believe
-                # the best way to fix it is to:
-                #
-                #   * Avoid adding a lock
-                #   * Accept that in these rare edge case we'll waste some CPU
-                #
-                # https://circleci.com/gh/andresriancho/w3af/1354
-                event.set()
-
-        return parser_output
-
-    def get_document_parser_for(self, http_response):
+    def get_document_parser_for(self, http_response, cache=True):
         """
         Get a document parser for http_response using the cache if required
 
         :param http_response: The http response instance
         :return: An instance of DocumentParser
         """
-        hash_string = self.get_cache_key(http_response)
-
-        if not self.should_cache(http_response):
-            # Just return the document parser, no need to cache
-            return self._parse_http_response_in_worker(http_response,
-                                                       hash_string)
+        hash_string = get_request_unique_id(http_response)
 
         parser_finished = self._parser_finished_events.get(hash_string, None)
         if parser_finished is not None:
@@ -240,78 +89,52 @@ class ParserCache(object):
             # body, the best thing to do here is to make this thread wait
             # until that process has finished
             try:
-                parser_finished.wait(timeout=self.PARSER_TIMEOUT)
+                parser_finished.wait(timeout=mp_doc_parser.PARSER_TIMEOUT)
+            except:
+                # Act just like when there is no parser
+                msg = 'There is no parser for "%s". Waited more than %s sec.'
+                args = (http_response.get_url(), mp_doc_parser.PARSER_TIMEOUT)
+                raise BaseFrameworkException(msg % args)
+
+        # metric increase
+        self.inc_query_count()
+
+        parser = self._cache.get(hash_string, None)
+        if parser is not None:
+            self._handle_cache_hit(hash_string)
+            return parser
+        else:
+            # Not in cache, have to work.
+            self._handle_cache_miss(hash_string)
+
+            # Create a new instance of DocumentParser, add it to the cache
+            event = threading.Event()
+            self._parser_finished_events[hash_string] = event
+
+            try:
+                parser = mp_doc_parser.get_document_parser_for(http_response)
             except:
                 # Act just like when there is no parser
                 msg = 'There is no parser for "%s".' % http_response.get_url()
                 raise BaseFrameworkException(msg)
-
-        parser = self._cache.get(hash_string, None)
-        if parser is not None:
-            self._debug_in_cache(hash_string)
-            return parser
-        else:
-            # Create a new instance of DocumentParser, add it to the cache
-            parser = self._parse_http_response_in_worker(http_response,
-                                                         hash_string)
-            self._cache[hash_string] = parser
-            self._debug_not_in_cache(hash_string)
-            return parser
-
-    def _debug_not_in_cache(self, hash_string):
-        if self.DEBUG:
-            self._total += 1
-
-            if hash_string in self._archive:
-                msg = '[%s] calculated and was in archive. (bad)'
-                print(msg % hash_string)
-                self._calculated_more_than_once += 1
             else:
-                msg = '[%s] calculated for the first time and cached. (good)'
-                print(msg % hash_string)
-                self._archive.add(hash_string)
+                save_to_cache = self.should_cache(http_response) and cache
+                if save_to_cache:
+                    self._cache[hash_string] = parser
+                else:
+                    self._handle_no_cache(hash_string)
+            finally:
+                event.set()
+                self._parser_finished_events.pop(hash_string, None)
 
-    def _debug_in_cache(self, hash_string):
-        if self.DEBUG:
-            self._total += 1
-
-            if hash_string in self._archive:
-                msg = '[%s] return from LRU and was in archive. (good)'
-                print(msg % hash_string)
-                self._from_LRU += 1
-
-
-class ProcessDocumentParser(DocumentParser):
-    """
-    Simple wrapper to get the current process id and store it in a shared object
-    so we can kill the process if needed.
-    """
-    def __init__(self, http_resp, processes, hash_string):
-        pid = multiprocessing.current_process().pid
-        processes[hash_string] = pid
-        
-        super(ProcessDocumentParser, self).__init__(http_resp)
+            return parser
 
 
 @atexit.register
 def cleanup_pool():
     if 'dpc' in globals():
-        dpc.stop_workers()
+        dpc.clear()
     
 
-def init_worker(log_queue):
-    """
-    This function is called right after each Process in the ProcessPool is
-    created, and it will initialized some variables/handlers which are required
-    for it to work as expected
-
-    :return: None
-    """
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    log_sink_factory(log_queue)
-    start_profiling_no_core()
-
-
 if is_main_process():
-    manager = multiprocessing.Manager()
     dpc = ParserCache()

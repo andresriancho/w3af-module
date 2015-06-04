@@ -23,20 +23,17 @@ import unittest
 
 from w3af.core.data.kb.config import Config
 from w3af.core.data.kb.config import cf as cf_singleton
-
 from w3af.core.data.fuzzer.fuzzer import create_mutants
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
-from w3af.core.data.parsers.url import URL
+from w3af.core.data.parsers.doc.url import URL
 from w3af.core.data.parsers.utils.form_params import FormParameters
-
 from w3af.core.data.fuzzer.mutants.querystring_mutant import QSMutant
 from w3af.core.data.fuzzer.mutants.cookie_mutant import CookieMutant
 from w3af.core.data.fuzzer.mutants.headers_mutant import HeadersMutant
 from w3af.core.data.fuzzer.mutants.filename_mutant import FileNameMutant
 from w3af.core.data.fuzzer.mutants.postdata_mutant import PostDataMutant
 from w3af.core.data.fuzzer.mutants.xmlrpc_mutant import XmlRpcMutant
-
-from w3af.core.data.parsers.tests.test_xmlrpc import XML_WITH_FUZZABLE
+from w3af.core.data.parsers.doc.tests.test_xmlrpc import XML_WITH_FUZZABLE
 from w3af.core.data.dc.cookie import Cookie
 from w3af.core.data.dc.headers import Headers
 from w3af.core.data.dc.urlencoded_form import URLEncodedForm
@@ -104,18 +101,23 @@ class TestFuzzer(unittest.TestCase):
         self.assertAllHaveTokens(generated_mutants)
 
     def test_special_url_characters(self):
-        special_chr_url = 'http://moth/core/encoding_spaces/xss-get.py' \
-                          '?__VIEWSTATE=/wEPDwUKMTEzMDczNTAxOWRk' \
-                          '&__EVENTVALIDATION=/wEWAwLNx+2YBwKw59eKCgKcjoPABw=='\
-                          '&_ctl0:_ctl0:Content:Main:TextBox1=%s'
+        initial_url = 'http://w3af.org/' \
+                      '?__VIEWSTATE=/' \
+                      '&__EVENTVALIDATION=\\X+W=='\
+                      '&_ctl0:TextBox1=%s'
 
-        url = URL(special_chr_url % '')
+        url = URL(initial_url % '')
         freq = FuzzableRequest(url)
         generated_mutants = create_mutants(freq, self.payloads)
 
-        expected_urls = [special_chr_url % 'abc',
-                         special_chr_url % 'def']
-        generated_urls = [m.get_uri().url_string for m in generated_mutants]
+        decoded_url = 'http://w3af.org/' \
+                      '?__VIEWSTATE=/' \
+                      '&__EVENTVALIDATION=\\X%%20W=='\
+                      '&_ctl0:TextBox1=%s'
+
+        expected_urls = [decoded_url % 'abc',
+                         decoded_url % 'def']
+        generated_urls = [str(m.get_uri()) for m in generated_mutants]
 
         self.assertEqual(generated_urls, expected_urls)
         self.assertAllInstance(generated_mutants, QSMutant)
@@ -321,8 +323,8 @@ class TestFuzzer(unittest.TestCase):
         cf_singleton.save('fuzz_url_parts', False)
 
         form_params = FormParameters()
-        form_params.add_input([("name", "username"), ("value", "")])
-        form_params.add_input([("name", "address"), ("value", "")])
+        form_params.add_field_by_attr_items([("name", "username"), ("value", "")])
+        form_params.add_field_by_attr_items([("name", "address"), ("value", "")])
 
         form = URLEncodedForm(form_params)
 

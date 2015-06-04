@@ -26,8 +26,7 @@ from mock import Mock
 
 from w3af.core.controllers.threads.threadpool import Pool
 from w3af.core.controllers.exceptions import DBException
-
-from w3af.core.data.parsers.url import URL
+from w3af.core.data.parsers.doc.url import URL
 from w3af.core.data.kb.knowledge_base import kb, DBKnowledgeBase
 from w3af.core.data.kb.tests.test_info import MockInfo
 from w3af.core.data.kb.tests.test_vuln import MockVuln
@@ -39,7 +38,6 @@ from w3af.core.data.url.extended_urllib import ExtendedUrllib
 from w3af.core.data.fuzzer.mutants.querystring_mutant import QSMutant
 from w3af.core.data.request.fuzzable_request import FuzzableRequest
 from w3af.core.controllers.w3afCore import w3afCore
-
 from w3af.plugins.attack.payloads.shell_handler import get_shell_code
 from w3af.plugins.attack.sqlmap import SQLMapShell
 from w3af.plugins.attack.db.sqlmap_wrapper import Target, SQLMapWrapper
@@ -753,13 +751,13 @@ class TestKnowledgeBase(unittest.TestCase):
         self.assertEqual(raw_data[1].first_info.get_name(), 'Bars')
 
     def test_append_uniq_group_filter_func_attribute_match(self):
-        vuln1 = MockVuln(name='Foos')
+        vuln1 = MockVuln(name='Foos', _id=47)
         vuln1['tag'] = 'foo'
 
         vuln2 = MockVuln(name='Bars')
         vuln2['tag'] = 'bar'
 
-        vuln3 = MockVuln(_id=42)
+        vuln3 = MockVuln(name='Foos', _id=42)
         vuln3['tag'] = 'foo'
 
         kb.append_uniq_group('a', 'b', vuln1, group_klass=MockInfoSetITag)
@@ -774,6 +772,7 @@ class TestKnowledgeBase(unittest.TestCase):
         self.assertEqual(raw_data[0].get_name(), 'Foos')
         self.assertEqual(len(raw_data[0].infos), 2)
         self.assertEqual(raw_data[0].infos[1].get_id(), [42])
+        self.assertEqual(raw_data[0].infos[0].get_id(), [47])
         self.assertEqual(raw_data[1].first_info.get_name(), 'Bars')
 
 

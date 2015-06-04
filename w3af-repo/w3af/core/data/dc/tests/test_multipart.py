@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
 import unittest
+import copy
 import os
 
 from nose.plugins.attrib import attr
@@ -122,11 +123,12 @@ class TestMultipartContainer(unittest.TestCase):
     def test_multipart_from_form_params(self):
         form_params = FormParameters()
 
+        form_params.add_field_by_attr_items([('name', 'b'),
+                                             ('type', 'file')])
+        form_params.add_field_by_attr_items([('name', 'a'),
+                                             ('type', 'text'),
+                                             ('value', 'bcd')])
         form_params.set_file_name('b', 'hello.txt')
-        form_params.add_file_input([('name', 'b')])
-        form_params.add_input([('name', 'a'),
-                               ('type', 'text'),
-                               ('value', 'bcd')])
 
         mpc = MultipartContainer(form_params)
 
@@ -169,3 +171,19 @@ class TestMultipartContainer(unittest.TestCase):
         self.assertEqual(mpc.get_parameter_type('userfile'), 'file')
         self.assertEqual(mpc.get_file_name('userfile'), 'aTFiAgn.gif')
 
+    def test_copy_with_token(self):
+        boundary, post_data = multipart_encode([('a', 'bcd'), ], [])
+        multipart_boundary = MultipartContainer.MULTIPART_HEADER
+
+        headers = Headers([('content-length', str(len(post_data))),
+                           ('content-type', multipart_boundary % boundary)])
+
+        dc = MultipartContainer.from_postdata(headers, post_data)
+
+        dc.set_token(('a', 0))
+        dc_copy = copy.deepcopy(dc)
+
+        self.assertEqual(dc.get_token(), dc_copy.get_token())
+        self.assertIsNotNone(dc.get_token())
+        self.assertIsNotNone(dc_copy.get_token())
+        self.assertEqual(dc_copy.get_token().get_name(), 'a')

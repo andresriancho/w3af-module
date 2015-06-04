@@ -22,7 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 from w3af.core.data.kb.vuln_templates.base_template import BaseTemplate
 from w3af.core.data.options.opt_factory import opt_factory
 from w3af.core.data.options.option_list import OptionList
-from w3af.core.data.parsers.url import URL
+from w3af.core.data.parsers.doc.url import URL
 
 
 class DAVTemplate(BaseTemplate):
@@ -37,9 +37,9 @@ class DAVTemplate(BaseTemplate):
 
     def get_options(self):
         """
-        In this case we provide a sample implementation since most vulnerabilities
-        will have this template. If the specific vulnerability needs other params
-        then it should override this implementation.
+        In this case we provide a sample implementation since most
+        vulnerabilities will have this template. If the specific vulnerability
+        needs other params then it should override this implementation.
         """
         ol = OptionList()
 
@@ -72,7 +72,7 @@ class DAVTemplate(BaseTemplate):
         :return: A tuple with the location where the vulnerability will be saved,
                  example return value would be: ('eval', 'eval')
         """
-        return ('dav', 'dav')
+        return 'dav', 'dav'
 
     def get_vulnerability_name(self):
         """

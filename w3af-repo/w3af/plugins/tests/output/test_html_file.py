@@ -20,13 +20,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 import os
 import re
+from cStringIO import StringIO
 
 from lxml import etree
-from cStringIO import StringIO
 
 from w3af.core.controllers.ci.moth import get_moth_http
 from w3af.core.data.kb.tests.test_vuln import MockVuln
-from w3af.core.data.parsers.url import URL
+from w3af.core.data.parsers.doc.url import URL
 from w3af.core.data.db.history import HistoryItem
 from w3af.plugins.tests.helper import PluginTest, PluginConfig
 from w3af.core.data.dc.headers import Headers
@@ -127,7 +127,7 @@ class TestHTMLRendering(PluginTest):
                'target_domain': 'w3af.com',
                'enabled_plugins': {'audit': ['xss'],
                                    'crawl': ['web_spider']},
-               'findings': [MockVuln('XSS-1', None, 'High', 1, 'xss'),
+               'findings': [MockVuln('SQL injection', None, 'High', 1, 'sqli'),
                             MockVuln('XSS-2', None, 'Medium', [], 'xss'),
                             MockVuln('XSS-3', None, 'Low', [], 'xss'),
                             MockVuln('XSS-4', None, 'Information', 4, 'xss')],

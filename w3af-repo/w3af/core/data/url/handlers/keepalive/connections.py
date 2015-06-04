@@ -119,8 +119,14 @@ class ProxyHTTPConnection(_HTTPConnection):
             if line == '\r\n':
                 break
 
+# https://bugs.kali.org/view.php?id=2160
+proto_names = ('PROTOCOL_SSLv3',
+               'PROTOCOL_TLSv1',
+               'PROTOCOL_SSLv23',
+               'PROTOCOL_SSLv2')
+_protocols = filter(None, (getattr(ssl, pn, None) for pn in proto_names))
 
-_protocols = [ssl.PROTOCOL_SSLv3, ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv23]
+# Avoid race conditions
 _protocols_lock = threading.RLock()
 
 
@@ -176,7 +182,7 @@ class SSLNegotiatorConnection(httplib.HTTPSConnection, UniqueID):
                                    timeout=self.timeout)
         except ssl.SSLError, ssl_exc:
             msg = "SSL connection error occurred with protocol %s: '%s'"
-            debug(msg % (protocol, ssl_exc))
+            debug(msg % (protocol, ssl_exc.__class__.__name__))
 
             # Always close the tcp/ip connection on error
             sock.close()

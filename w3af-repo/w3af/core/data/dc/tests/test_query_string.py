@@ -20,6 +20,8 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 import unittest
+import copy
+import cPickle
 
 from w3af.core.data.dc.query_string import QueryString
 
@@ -56,3 +58,25 @@ class TestQueryString(unittest.TestCase):
         qs['foo'] = ['bar', 'spam']
         self.assertEqual(str(qs), 'a=1&foo=bar&foo=spam')
 
+    def test_copy_with_token(self):
+        dc = QueryString([('a', ['1'])])
+
+        dc.set_token(('a', 0))
+        dc_copy = copy.deepcopy(dc)
+
+        self.assertEqual(dc.get_token(), dc_copy.get_token())
+        self.assertIsNotNone(dc.get_token())
+        self.assertIsNotNone(dc_copy.get_token())
+        self.assertEqual(dc_copy.get_token().get_name(), 'a')
+
+    def test_pickle(self):
+        dc = QueryString([('a', ['1'])])
+        dc.set_token(('a', 0))
+
+        pickled_qs = cPickle.dumps(dc)
+        unpickled_qs = cPickle.loads(pickled_qs)
+
+        self.assertEqual(dc, unpickled_qs)
+        self.assertEqual(dc.keys(), unpickled_qs.keys())
+        self.assertEqual(dc.keys(), ['a'])
+        self.assertEqual(dc.get_token().get_name(), 'a')
