@@ -109,26 +109,18 @@ class TestGHDB(PluginTest):
             self.assertIsInstance(ghdb_inst, GoogleHack)
 
     def test_too_old_xml(self):
-
-        # https://github.com/andresriancho/w3af/issues/10103
-        raise SkipTest('GHDB maintainers do NOT answer my mails and the'
-                       ' URL I was using to update the XML now requires'
-                       ' basic authentication.')
-
         ghdb_inst = self.w3afcore.plugins.get_plugin_inst('crawl', 'ghdb')
 
         ghdb_file = ghdb_inst._ghdb_file
         is_older = days_since_file_update(ghdb_file, 30)
 
-        today = datetime.datetime.today()
-
-        msg = 'The GHDB database is too old, please update it by running the' \
-              ' following command:'\
-              '\n' \
-              'wget <secret>%02d_%02d_%s.xml -O w3af/plugins/crawl/ghdb/GHDB.xml --user-agent=Chrome\n' \
-              'git commit -m "Updating GHDB database." w3af/plugins/crawl/ghdb/GHDB.xml\n' \
-              'git push\n' \
-              '\n'\
-              'Also remember to run this unittest again to verify that the' \
-              ' downloaded file can be parsed by the plugin.'
-        self.assertFalse(is_older, msg % (today.month, today.day, today.year))
+        msg = ('The GHDB database is too old, please update it by running the'
+               ' following command:'
+               '\n'
+               '<secret wget-command>\n'
+               'git commit -m "Update GHDB" w3af/plugins/crawl/ghdb/GHDB.xml\n'
+               'git push\n'
+               '\n'
+               'Also remember to run this unittest again to verify that the'
+               ' downloaded file can be parsed by the plugin.')
+        self.assertFalse(is_older, msg)
