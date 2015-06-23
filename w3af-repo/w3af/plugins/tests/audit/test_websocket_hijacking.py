@@ -39,6 +39,7 @@ ALL_RUN_CONFIG = {
         'plugins': {
             'audit': (PluginConfig('websocket_hijacking'),),
             'grep': (PluginConfig('websockets_links'),),
+            'crawl': (PluginConfig('web_spider'),),
         }
     }
 }
@@ -221,14 +222,22 @@ class OpenWebSocketsWithCrawlTest(WebSocketTest):
     target_ws_http = 'http://w3af.com/echo'
     target_ws = 'ws://w3af.com/echo'
 
-    HTML_BODY = ('<html>'
-                 '<script>'
-                 'var connection = new WebSocket("ws://w3af.com/echo");'
-                 '</script>'
-                 '</html>')
+    INDEX_BODY = ('<html>'
+                  '<a href="/ws-index">ws index</a>'
+                  '</html>')
+
+    WS_BODY = ('<html>'
+               '<script>'
+               'var connection = new WebSocket("ws://w3af.com/echo");'
+               '</script>'
+               '</html>')
 
     MOCK_RESPONSES = [MockResponse(url=target_url,
-                                   body=HTML_BODY,
+                                   body=INDEX_BODY,
+                                   method='GET',
+                                   status=200),
+                      MockResponse(url=target_url + 'ws-index',
+                                   body=WS_BODY,
                                    method='GET',
                                    status=200),
                       MockResponse(url=target_ws_http,
@@ -237,7 +246,7 @@ class OpenWebSocketsWithCrawlTest(WebSocketTest):
                                    status=101,
                                    headers=SUCCESSFUL_UPGRADE)]
 
-    def test_open_websockets(self):
+    def test_open_websockets_with_crawl(self):
         # Run the plugin
         cfg = ALL_RUN_CONFIG['cfg']
         self._scan(self.target_url, cfg['plugins'])

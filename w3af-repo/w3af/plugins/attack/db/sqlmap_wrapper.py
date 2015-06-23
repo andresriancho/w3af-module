@@ -40,7 +40,8 @@ class SQLMapWrapper(object):
                     'sqlmap.py',
                     '--output-dir=%s' % OUTPUT_DIR]
 
-    SQLMAP_LOCATION = os.path.join(ROOT_PATH, 'plugins', 'attack', 'db', 'sqlmap') 
+    SQLMAP_LOCATION = os.path.join(ROOT_PATH,
+                                   'plugins', 'attack', 'db', 'sqlmap')
     VULN_STR = 'sqlmap identified the following injection points'
     NOT_VULN_STR = 'all tested parameters appear to be not injectable'
 
@@ -49,7 +50,8 @@ class SQLMapWrapper(object):
                      'it is not recommended to continue in this kind of cases',
                      'unable to connect to the target url or proxy',
                      "[INFO] skipping '",
-                     '[CRITICAL] unable to retrieve page content')
+                     '[CRITICAL] unable to retrieve page content',
+                     'establish SSL connection')
     
     def __init__(self, target, uri_opener, coloring=False, debug=False):
         if not isinstance(target, Target):
