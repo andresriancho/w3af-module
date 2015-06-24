@@ -63,7 +63,9 @@ setup(
     dependency_links=get_pip_git_requirements(),
 
     # Install these scripts
-    scripts=['w3af-repo/w3af_console', 'w3af-repo/w3af_gui'],
+    scripts=['w3af-repo/w3af_console',
+             'w3af-repo/w3af_gui',
+             'w3af-repo/w3af_api'],
 
     # https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
