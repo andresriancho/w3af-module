@@ -1,5 +1,5 @@
 """
-test_version.py
+test_auth.py
 
 Copyright 2015 Andres Riancho
 
@@ -19,23 +19,26 @@ along with w3af; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
+import json
 import requests
 
 from w3af.core.ui.api.tests.utils.api_unittest import APIUnitTest
+from w3af.core.ui.api.tests.utils.test_profile import get_test_profile
 
 
-class VersionTest(APIUnitTest):
+class AuthTest(APIUnitTest):
 
-    def test_get_version(self):
-        #
-        # Name filter
-        #
-        response = requests.get('%s/version' % self.api_url,
-                                auth=self.api_auth)
-        self.assertEqual(response.status_code, 200, response.text)
+    def test_auth(self):
+        profile, target_url = get_test_profile()
+        data = {'scan_profile': profile,
+                'target_urls': [target_url]}
+        response = requests.post('%s/scans/' % self.api_url,
+                                 # I'm not sending any authentication in this
+                                 # request
+                                 #auth=self.api_auth,
+                                 data=json.dumps(data),
+                                 headers=self.headers)
 
-        version_dict = response.json()
-        self.assertIn('version', version_dict)
-        self.assertIn('revision', version_dict)
-        self.assertIn('branch', version_dict)
-        self.assertIn('dirty', version_dict)
+        code = response.json()['code']
+        self.assertEqual(code, 401)
+        self.assertEqual(response.status_code, 401)
