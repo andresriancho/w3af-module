@@ -1,5 +1,5 @@
 """
-test_auth.py
+test_urls.py
 
 Copyright 2015 Andres Riancho
 
@@ -25,21 +25,36 @@ from w3af.core.ui.api.tests.utils.api_unittest import APIUnitTest
 from w3af.core.ui.api.tests.utils.test_profile import get_test_profile
 
 
-class AuthTest(APIUnitTest):
+class URLTest(APIUnitTest):
 
-    def test_auth(self):
+    def test_url_list(self):
         profile, target_url = get_test_profile()
         data = {'scan_profile': profile,
                 'target_urls': [target_url]}
-
-        # I'm not sending any authentication in this request
-        headers = self.HEADERS.copy()
-        headers.pop('Authorization')
-
         response = self.app.post('/scans/',
                                  data=json.dumps(data),
-                                 headers=headers)
+                                 headers=self.HEADERS)
 
-        code = json.loads(response.data)['code']
-        self.assertEqual(code, 401)
-        self.assertEqual(response.status_code, 401)
+        scan_id = json.loads(response.data)['id']
+
+        #
+        # Wait until the scanner finishes and assert the vulnerabilities
+        #
+        self.wait_until_running()
+        self.wait_until_finish()
+
+        #
+        # Get all the URLs that the scanner found
+        #
+        response = self.app.get('/scans/%s/urls/' % scan_id,
+                                headers=self.HEADERS)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        url_items = json.loads(response.data)['items']
+
+        expected_urls = [target_url,
+                         u'%s/where_integer_qs.py' % target_url[:-1],
+                         u'%s/where_string_single_qs.py' % target_url[:-1],
+                         u'%s/where_integer_form.py' % target_url[:-1]]
+        self.assertEqual(set(url_items), set(expected_urls))
+
